@@ -169,8 +169,8 @@ export async function ensureFcmTokenRegistered({
     if (!token) {
       throw new Error("Failed to obtain native FCM token from Flutter");
     }
-    // Set platform to android/ios instead of web for native tokens
-    platform = /android/i.test(navigator.userAgent) ? "android" : "ios";
+    // Set platform to 'app' to match backend validation (instead of android/ios)
+    platform = "app";
   } else {
     const app = getFirebaseApp();
     if (!app) {
