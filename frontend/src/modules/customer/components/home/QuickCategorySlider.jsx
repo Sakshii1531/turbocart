@@ -54,7 +54,7 @@ const QuickCategorySlider = ({ categories, onCategoryClick }) => {
                 onClick={() => onCategoryClick(cat.id)}
                 className="flex flex-col items-center gap-0.5 min-w-[74px] md:min-w-[104px] lg:min-w-[120px] cursor-pointer group/item snap-start transition-transform active:scale-95">
                 <div
-                  className="relative w-[74px] h-[84px] md:w-[104px] md:h-[116px] lg:w-[120px] lg:h-[132px] rounded-[18px] md:rounded-[22px] shadow-[0_8px_18px_rgba(15,23,42,0.10)] border flex items-start justify-center p-1.5 md:p-2 transition-all duration-300 group-hover/item:-translate-y-1 group-hover/item:shadow-[0_16px_30px_rgba(15,23,42,0.14)] overflow-hidden"
+                  className="relative w-[74px] h-[84px] md:w-[104px] md:h-[116px] lg:w-[120px] lg:h-[132px] rounded-[18px] md:rounded-[22px] shadow-[0_8px_18px_rgba(15,23,42,0.10)] border flex items-start justify-center p-1.5 md:p-2 transition-all duration-300 group-hover/item:-translate-y-1 group-hover/item:shadow-[0_16px_30px_rgba(15,23,42,0.14)] overflow-hidden smooth-transform"
                   style={{
                     backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.6) 24%, rgba(255,255,255,0.15) 100%), linear-gradient(135deg, ${palette.bgFrom}, ${palette.bgVia}, ${palette.bgTo})`,
                     borderColor: palette.frameColor,
