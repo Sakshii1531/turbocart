@@ -52,6 +52,71 @@ const INDEX_DEFINITIONS = {
   
   notifications: [
     { keys: { recipient: 1, createdAt: -1 }, options: { name: "idx_recipient_created", background: true } },
+
+    // P6.1 Part 3 — backs unread-count badge query.
+    // Filter shape: { recipient, read: false }
+    { keys: { recipient: 1, read: 1, createdAt: -1 }, options: { name: "idx_recipient_read_created", background: true } },
+
+    // P6.1 Part 3 — backs notification cleanup job (delete >30d, by type).
+    { keys: { type: 1, createdAt: -1 }, options: { name: "idx_type_created", background: true } },
+  ],
+
+  // P6.1 Part 3 — sellers collection (verification + nearby lookup).
+  sellers: [
+    // Backs admin verification / pending-sellers list.
+    { keys: { isVerified: 1, isActive: 1, createdAt: -1 }, options: { name: "idx_isVerified_isActive_created", background: true } },
+    // Backs seller-by-email auth lookup.
+    { keys: { email: 1 }, options: { name: "idx_email", background: true, sparse: true } },
+    // Backs seller-by-phone OTP signup lookup.
+    { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
+  ],
+
+  // P6.1 Part 3 — customers / users collection (auth + addresses).
+  customers: [
+    { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
+    { keys: { email: 1 }, options: { name: "idx_email", background: true, sparse: true } },
+    { keys: { createdAt: -1 }, options: { name: "idx_created", background: true } },
+  ],
+
+  // P6.1 Part 3 — delivery partners collection.
+  deliveries: [
+    { keys: { phone: 1 }, options: { name: "idx_phone", background: true, sparse: true } },
+    { keys: { isOnline: 1, isVerified: 1, isActive: 1 }, options: { name: "idx_online_verified_active", background: true } },
+  ],
+
+  // P6.1 Part 3 — wishlist lookup is always per-customer.
+  wishlists: [
+    { keys: { customerId: 1 }, options: { name: "idx_customerId", background: true } },
+    { keys: { customerId: 1, "items.productId": 1 }, options: { name: "idx_customerId_itemsProductId", background: true } },
+  ],
+
+  // P6.1 Part 3 — cart lookup is always per-customer.
+  carts: [
+    { keys: { customerId: 1 }, options: { name: "idx_customerId_unique", background: true, unique: true } },
+  ],
+
+  // P6.1 Part 3 — withdrawals admin queue + per-user history.
+  withdrawals: [
+    { keys: { status: 1, createdAt: -1 }, options: { name: "idx_status_created", background: true } },
+    { keys: { user: 1, userModel: 1, createdAt: -1 }, options: { name: "idx_user_userModel_created", background: true } },
+  ],
+
+  // P6.1 Part 3 — support tickets admin queue.
+  tickets: [
+    { keys: { status: 1, priority: 1, createdAt: -1 }, options: { name: "idx_status_priority_created", background: true } },
+    { keys: { userId: 1, status: 1, createdAt: -1 }, options: { name: "idx_userId_status_created", background: true } },
+  ],
+
+  // P6.1 Part 3 — finance ledger lookups (already common but explicit).
+  ledgerentries: [
+    { keys: { orderId: 1, actorType: 1, createdAt: -1 }, options: { name: "idx_orderId_actorType_created", background: true } },
+    { keys: { ownerType: 1, ownerId: 1, createdAt: -1 }, options: { name: "idx_ownerType_ownerId_created", background: true } },
+  ],
+
+  // P6.1 Part 3 — webhook idempotency lookup.
+  paymentwebhookevents: [
+    { keys: { eventId: 1 }, options: { name: "idx_eventId_unique", background: true, unique: true } },
+    { keys: { gatewayName: 1, createdAt: -1 }, options: { name: "idx_gatewayName_created", background: true } },
   ],
 
   payments: [

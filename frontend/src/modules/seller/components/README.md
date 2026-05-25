@@ -32,9 +32,9 @@ modules/seller/components/
 
 ## Migration status
 
-| Page                   | Status     | Extracted components |
-| ---------------------- | ---------- | -------------------- |
-| Orders.jsx             | In progress | `orders/OrderFiltersBar` (P4.6) |
-| ProductManagement.jsx  | Pending     |                      |
-| Returns.jsx            | Pending     |                      |
-| Earnings.jsx           | Pending     |                      |
+| Page                   | Status        | Extracted components |
+| ---------------------- | ------------- | -------------------- |
+| Orders.jsx             | In progress   | `orders/orderStatusUtils` (P4.6) |
+| ProductManagement.jsx  | Scaffolded    | `products/` README + barrel (P4.4 Part 3) |
+| Returns.jsx            | Scaffolded    | `returns/` README + barrel (P4.7 Part 3) |
+| Earnings.jsx           | Scaffolded    | `earnings/` README + barrel (P4.7 Part 3) |

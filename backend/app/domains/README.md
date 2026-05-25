@@ -39,16 +39,36 @@ core of the "Wrap & Improve" safety net.
 
 ## Domains scaffolded so far
 
-| Domain    | Status |
-| --------- | ------ |
-| order     | shim scaffold complete (P5.1) |
-| delivery  | shim scaffold complete (P5.1) |
-| product   | TODO (Phase 5 follow-up) |
-| seller    | TODO (Phase 5 follow-up) |
-| payment   | Already domain-scoped under `services/payment/` |
-| workflow  | Already domain-scoped under `services/workflow/` |
+| Domain        | Status |
+| ------------- | ------ |
+| order         | shim scaffold complete (P5.1) |
+| delivery      | shim scaffold complete (P5.1) |
+| product       | shim scaffold complete (P5.1 Part 3) |
+| seller        | shim scaffold complete (P5.1 Part 3) |
+| customer      | shim scaffold complete (P5.1 Part 3) |
+| payment       | shim + provider port/registry (P3.1–P3.3 / P5.1 Part 3) |
+| finance       | shim scaffold complete (P5.1 Part 3) |
+| notification  | shim scaffold complete (P5.1 Part 3) |
+| otp           | shim scaffold complete (P5.1 Part 3) |
+| workflow      | Already domain-scoped under `services/workflow/` |
 
 ## When adding a NEW domain
 
 Prefer building the new domain directly under `app/domains/<entity>/`.
 No shim needed. Existing code can reach into the new domain via the barrel.
+
+## How to import from a domain
+
+All domains expose a single `index.js` barrel. New code SHOULD prefer
+importing from the barrel:
+
+```js
+import { orderController, OrderReturnService } from "@/domains/order";
+import { productController } from "@/domains/product";
+import { paymentController, getActivePaymentProvider } from "@/domains/payment";
+import { financeController, processPayout, creditWallet } from "@/domains/finance";
+```
+
+Legacy import paths (`controller/orderController.js`, `services/finance/...`,
+`modules/notifications/...`) continue to work unchanged. Migration is
+incremental — flip individual files as you touch them.
