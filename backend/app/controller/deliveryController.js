@@ -455,7 +455,7 @@ export const updateDeliveryLocation = async (req, res) => {
  *   POST /orders/workflow/:orderId/otp/request  -> requestHandoffOtpAtomic
  *   POST /orders/workflow/:orderId/otp/verify   -> verifyHandoffOtpAndDeliver
  *
- * The previous generateDeliveryOtp / alidateDeliveryOtp controllers
+ * The previous generateDeliveryOtp / validateDeliveryOtp controllers
  * and their /delivery/orders/:orderId/(generate|validate)-otp routes
  * were removed once the workflow state machine became the single source
  * of truth for delivery completion. All behaviors (Delivery.location

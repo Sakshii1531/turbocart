@@ -67,18 +67,22 @@ function DeliveryScreen() {
 
 ## API Integration
 
-The component calls the following API endpoint:
+The component calls the canonical workflow endpoint:
 
 ```
-POST /api/delivery/orders/:orderId/validate-otp
+POST /api/orders/workflow/:orderId/otp/verify
 ```
 
 **Request Body:**
 ```json
 {
-  "otp": "1234"
+  "code": "1234"
 }
 ```
+
+> The legacy `/api/delivery/orders/:orderId/(generate|validate)-otp`
+> routes were removed in favor of the workflow state machine. The
+> request endpoint is `POST /api/orders/workflow/:orderId/otp/request`.
 
 **Success Response (200):**
 ```json

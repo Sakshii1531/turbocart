@@ -16,6 +16,12 @@ import {
   notificationQueue,
   NOTIFICATION_JOB_NAMES,
 } from "./notification.queue.js";
+import {
+  emitToAdmin,
+  emitToSeller,
+  emitToCustomer,
+  emitToDelivery,
+} from "../../services/orderSocketEmitter.js";
 
 const notificationEmitter = new EventEmitter();
 const localDedupeStore = new Map();
@@ -142,6 +148,66 @@ async function refreshQueueMetrics() {
   setGauge("notifications_queue_failed", 0);
 }
 
+/**
+ * Push an in-app `notification:new` delta to the recipient's role
+ * room so the UI (topbar badge, NotificationPopup) can refresh
+ * instantly. Fire-and-forget — if the socket layer is unavailable or
+ * the recipient has no live client, we just skip silently. The
+ * Notification row is already persisted, so the standard refetch /
+ * poll fallback still surfaces it.
+ *
+ * Payload is intentionally small: clients should treat this as a
+ * "ping, go refetch your notifications" rather than a full mirror of
+ * the row (which avoids drift if the DB write is later corrected).
+ */
+function emitInAppNotificationDelta(notification, notificationDoc, eventType) {
+  try {
+    const userId =
+      notificationDoc?.userId != null &&
+      typeof notificationDoc.userId.toString === "function"
+        ? notificationDoc.userId.toString()
+        : String(notificationDoc?.userId || notification?.userId || "");
+    if (!userId) return;
+
+    const payload = {
+      notificationId: notificationDoc?._id?.toString?.() || null,
+      eventType: eventType || notificationDoc?.type || notification?.type,
+      role: notification.role,
+      title: notification.title,
+      body: notification.body || notification.message,
+      data: notification.data || {},
+      createdAt:
+        (notificationDoc?.createdAt instanceof Date
+          ? notificationDoc.createdAt.toISOString()
+          : null) || new Date().toISOString(),
+    };
+
+    switch (notification.role) {
+      case NOTIFICATION_ROLES.ADMIN:
+        emitToAdmin(userId, { event: "notification:new", payload });
+        break;
+      case NOTIFICATION_ROLES.SELLER:
+        emitToSeller(userId, { event: "notification:new", payload });
+        break;
+      case NOTIFICATION_ROLES.CUSTOMER:
+        emitToCustomer(userId, { event: "notification:new", payload });
+        break;
+      case NOTIFICATION_ROLES.DELIVERY:
+        emitToDelivery(userId, { event: "notification:new", payload });
+        break;
+      default:
+        // Unknown role — nothing to do. Push pipeline still handles it.
+        break;
+    }
+  } catch (error) {
+    // Never let an in-app emit issue derail the rest of the pipeline.
+    logger.warn("In-app notification socket emit failed", {
+      role: notification?.role,
+      message: error?.message,
+    });
+  }
+}
+
 export async function notify(eventType, payload = {}) {
   if (!NOTIFICATIONS_ENABLED()) {
     return { enqueued: 0, skipped: 0, duplicates: 0, notificationIds: [] };
@@ -182,6 +248,14 @@ export async function notify(eventType, payload = {}) {
         dedupeKey,
         status: "pending",
       });
+
+      // In-app socket delta — wake up any open admin/seller/customer/
+      // delivery UI immediately so their topbar badge increments without
+      // waiting on FCM or the 20 s poll fallback. Best-effort: a missing
+      // socket layer must never block notification creation. Runs BEFORE
+      // the push enqueue so even a Bull/Redis outage doesn't suppress
+      // the in-app signal.
+      emitInAppNotificationDelta(notification, notificationDoc, eventType);
 
       // Push pipeline is queue-first: the API/event handler only persists
       // the Notification row and hands off delivery to the worker via Bull.

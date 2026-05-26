@@ -80,6 +80,22 @@ export function emitToDelivery(deliveryId, { event, payload }) {
 }
 
 /**
+ * Emit a custom event to a single admin's per-admin room
+ * (joined as `admin:<userId>` in socketManager.js). Used for
+ * `notification:new` deltas that should only wake up the specific
+ * admin who owns the Notification row.
+ */
+export function emitToAdmin(adminId, { event, payload }) {
+  const s = getIo();
+  if (!s || !adminId || !event) return;
+  const id =
+    adminId && typeof adminId === "object" && typeof adminId.toString === "function"
+      ? adminId.toString()
+      : String(adminId);
+  s.to(`admin:${id}`).emit(event, payload);
+}
+
+/**
  * Emit a custom event to everyone who has joined the order room
  * (via `join_order`). Used for events that aren't pure workflow
  * status updates — e.g. `delivery:otp:validated`, `delivery:otp:generated`.

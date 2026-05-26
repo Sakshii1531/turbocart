@@ -158,6 +158,20 @@ export function onTicketCreated(getToken, handler) {
   return () => s.off("ticket:created", handler);
 }
 
+/**
+ * In-app "new notification" socket delta. Fires whenever the backend
+ * persists a Notification row for the currently-authenticated user
+ * (admin / seller / customer / delivery). The payload is intentionally
+ * a small ping — consumers typically just refetch the canonical list /
+ * unread count rather than try to merge by id.
+ */
+export function onNotificationNew(getToken, handler) {
+  const s = getOrderSocket(getToken);
+  if (!s || typeof handler !== "function") return () => {};
+  s.on("notification:new", handler);
+  return () => s.off("notification:new", handler);
+}
+
 export function onDeliveryBroadcast(getToken, handler) {
   const s = getOrderSocket(getToken);
   if (!s || typeof handler !== "function") return () => {};

@@ -16,9 +16,10 @@ import NotificationPopup from './NotificationPopup';
 import { toast } from 'sonner';
 
 import { useSettings } from '@core/context/SettingsContext';
+import { onNotificationNew } from '@core/services/orderSocket';
 
 const Topbar = ({ onMenuClick }) => {
-    const { user, logout, role } = useAuth();
+    const { user, logout, role, token } = useAuth();
     const { settings } = useSettings();
     const navigate = useNavigate();
     const location = useLocation();
@@ -44,10 +45,19 @@ const Topbar = ({ onMenuClick }) => {
         }
     };
 
-    const fetchNotifications = async () => {
+    // Stable refs so the socket / visibility listeners don't need to
+    // re-bind whenever React re-renders the topbar for unrelated reasons.
+    const isSellerRef = React.useRef(isSeller);
+    const isAdminRef = React.useRef(isAdmin);
+    React.useEffect(() => { isSellerRef.current = isSeller; }, [isSeller]);
+    React.useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
+
+    const fetchNotifications = React.useCallback(async () => {
         try {
-            if (!isSeller && !isAdmin) return;
-            const response = isSeller
+            const sellerMode = isSellerRef.current;
+            const adminMode = isAdminRef.current;
+            if (!sellerMode && !adminMode) return;
+            const response = sellerMode
                 ? await sellerApi.getNotifications()
                 : await adminApi.getNotifications();
             if (response.data.success) {
@@ -57,14 +67,60 @@ const Topbar = ({ onMenuClick }) => {
         } catch (error) {
             console.error("Notif Fetch Error:", error);
         }
-    };
+    }, []);
 
+    // Event-driven refresh: subscribe to `notification:new` for the
+    // current admin/seller and refetch on any in-app delta. The 60s
+    // poll below is now a degraded safety net for environments where
+    // the socket can't connect (CSP, proxy, etc.) — primary path is
+    // the socket. Tab focus also triggers an immediate refresh so a
+    // user returning to a backgrounded tab sees a fresh badge.
     React.useEffect(() => {
-        fetchNotifications();
         if (!isSeller && !isAdmin) return undefined;
-        const poll = setInterval(fetchNotifications, 20000);
-        return () => clearInterval(poll);
-    }, [isSeller, isAdmin]);
+        fetchNotifications();
+
+        const getToken = () => token;
+        let scheduled = null;
+        const refresh = () => {
+            if (scheduled) return;
+            // Debounce: bursts of notifications (e.g. bulk order accept)
+            // shouldn't trigger N concurrent refetches.
+            scheduled = setTimeout(() => {
+                scheduled = null;
+                fetchNotifications();
+            }, 200);
+        };
+
+        const offNotification = token ? onNotificationNew(getToken, refresh) : null;
+
+        // Degraded fallback: 60s poll. The socket is the primary
+        // path, this just covers offline-recovery / dropped connections.
+        const FALLBACK_POLL_MS = 60_000;
+        const poll = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                return;
+            }
+            fetchNotifications();
+        }, FALLBACK_POLL_MS);
+
+        const onVisibility = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+                fetchNotifications();
+            }
+        };
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', onVisibility);
+        }
+
+        return () => {
+            if (scheduled) clearTimeout(scheduled);
+            clearInterval(poll);
+            if (typeof document !== 'undefined') {
+                document.removeEventListener('visibilitychange', onVisibility);
+            }
+            if (typeof offNotification === 'function') offNotification();
+        };
+    }, [isSeller, isAdmin, token, fetchNotifications]);
 
     // Handle Click Outside
     React.useEffect(() => {

@@ -50,6 +50,10 @@ export const initSocket = (io) => {
     if (role === "admin") {
       socket.join("admin:orders");
       socket.join("admin:support");
+      // Per-admin room — used by the notification service to push
+      // `notification:new` deltas to the specific admin who owns the
+      // Notification row, so the topbar can refresh without polling.
+      socket.join(`admin:${userId}`);
     }
 
     socket.on("join_order", (orderId) => {
