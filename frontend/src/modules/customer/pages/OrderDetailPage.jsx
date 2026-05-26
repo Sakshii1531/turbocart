@@ -32,6 +32,10 @@ import { customerApi } from "../services/customerApi";
 import { toast } from "sonner";
 import { subscribeToOrderLocation, subscribeToOrderTrail, subscribeToOrderRoute } from "@/core/services/trackingClient";
 import {
+  useOrderIdentifiers,
+  resolveOrderIdentifiers,
+} from "../hooks/useOrderIdentifiers";
+import {
   getOrderSocket,
   joinOrderRoom,
   leaveOrderRoom,
@@ -162,12 +166,29 @@ const OrderDetailPage = () => {
   const routeRequestRef = useRef({ phase: "", startedAt: 0 });
   const [returnCountdown, setReturnCountdown] = useState(null);
   const refreshRef = useRef({ inFlight: false, lastAt: 0 });
-  const identifiersRef = useRef([]);
   const extraRoomRef = useRef("");
 
+  // Single source of truth for the various ids that may refer to this
+  // order (URL param vs canonical order.orderId vs checkoutGroupId). The
+  // hook exposes:
+  //   - canonicalOrderId : id to use for realtime fan-out (RTDB + sockets)
+  //   - identifiersRef   : .current array kept in sync for socket callbacks
+  //   - extraRoomId      : canonical id when it differs from the URL param
+  // `lookupId` is also available from the hook for callers that need a
+  // REST-friendly id; this page derives it ad hoc via `resolveOrderLookupId`
+  // because the value is needed against freshly-fetched data before state
+  // settles, which the pure helper handles directly.
+  const {
+    canonicalOrderId,
+    identifiersRef,
+    extraRoomId,
+  } = useOrderIdentifiers(orderId, order);
+
   const navigate = useNavigate();
+  // Pure helper for resolving the lookup id from a freshly-fetched order
+  // before React state has settled (e.g. inside the initial fetch effect).
   const resolveOrderLookupId = (ord) =>
-    String(ord?.orderId || ord?.checkoutGroupId || orderId || "").trim();
+    resolveOrderIdentifiers(ord, orderId).lookupId || "";
 
   const handleBack = () => {
     const idx = window?.history?.state?.idx;
@@ -311,12 +332,6 @@ const OrderDetailPage = () => {
   }, [orderId]);
 
   useEffect(() => {
-    identifiersRef.current = [orderId, order?.orderId, order?.checkoutGroupId]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean);
-  }, [orderId, order?.orderId, order?.checkoutGroupId]);
-
-  useEffect(() => {
     if (!orderId) return undefined;
     const getToken = () => {
       const raw = localStorage.getItem("auth_customer");
@@ -333,8 +348,7 @@ const OrderDetailPage = () => {
       return trimmed;
     };
 
-    const nextExtraRoom =
-      order?.orderId && order.orderId !== orderId ? String(order.orderId) : "";
+    const nextExtraRoom = extraRoomId;
 
     if (extraRoomRef.current && extraRoomRef.current !== nextExtraRoom) {
       leaveOrderRoom(extraRoomRef.current, getToken);
@@ -352,33 +366,40 @@ const OrderDetailPage = () => {
         extraRoomRef.current = "";
       }
     };
-  }, [orderId, order?.orderId]);
+  }, [orderId, extraRoomId]);
 
-  // Subscribe to live tracking from Firebase (if available)
+  // Subscribe to live tracking from Firebase (if available).
+  //
+  // Realtime DB writes from the rider/server are keyed on the canonical
+  // `order.orderId`. The URL param may be a checkoutGroupId / alias / Mongo
+  // _id, so subscribing on the raw URL produces zero updates for those
+  // surfaces. We re-pin the subscriptions whenever the resolved canonical
+  // id changes (i.e. once the order has loaded).
   useEffect(() => {
-    if (!orderId) return;
+    const trackingId = canonicalOrderId;
+    if (!trackingId) return;
 
-    console.log(`[OrderDetailPage] Setting up Firebase subscriptions for order ${orderId}`);
-    const offLocation = subscribeToOrderLocation(orderId, (loc) => {
+    console.log(`[OrderDetailPage] Setting up Firebase subscriptions for order ${trackingId}`);
+    const offLocation = subscribeToOrderLocation(trackingId, (loc) => {
       console.log(`[OrderDetailPage] Location update:`, loc);
       setLiveLocation(loc);
     });
-    const offTrail = subscribeToOrderTrail(orderId, (t) => {
+    const offTrail = subscribeToOrderTrail(trackingId, (t) => {
       console.log(`[OrderDetailPage] Trail update: ${t.length} points`);
       setTrail(t);
     });
-    const offRoute = subscribeToOrderRoute(orderId, (route) => {
+    const offRoute = subscribeToOrderRoute(trackingId, (route) => {
       console.log(`[OrderDetailPage] Route update:`, route);
       setRoutePolyline(route);
     });
 
     return () => {
-      console.log(`[OrderDetailPage] Cleaning up Firebase subscriptions for order ${orderId}`);
+      console.log(`[OrderDetailPage] Cleaning up Firebase subscriptions for order ${trackingId}`);
       offLocation && offLocation();
       offTrail && offTrail();
       offRoute && offRoute();
     };
-  }, [orderId]);
+  }, [canonicalOrderId]);
 
   useEffect(() => {
     const iv = setInterval(() => setClockTick(Date.now()), 30000);

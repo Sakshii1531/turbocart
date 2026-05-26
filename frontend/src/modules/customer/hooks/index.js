@@ -16,3 +16,7 @@
 export { useOrders } from './useOrders';
 export { useOrderDetails } from './useOrderDetails';
 export { useCheckout } from './useCheckout';
+export {
+  useOrderIdentifiers,
+  resolveOrderIdentifiers,
+} from './useOrderIdentifiers';
