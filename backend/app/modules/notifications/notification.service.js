@@ -8,10 +8,14 @@ import {
   NOTIFICATION_ROLES,
   NOTIFICATIONS_ENABLED,
 } from "./notification.constants.js";
-import { getRedisClient } from "../../config/redis.js";
+import { getRedisClient, isRedisEnabled } from "../../config/redis.js";
 import logger from "../../services/logger.js";
 import { incrementCounter, setGauge } from "../../services/metrics.js";
 import { deliverNotificationById } from "./notification.worker.js";
+import {
+  notificationQueue,
+  NOTIFICATION_JOB_NAMES,
+} from "./notification.queue.js";
 
 const notificationEmitter = new EventEmitter();
 const localDedupeStore = new Map();
@@ -179,15 +183,38 @@ export async function notify(eventType, payload = {}) {
         status: "pending",
       });
 
+      // Push pipeline is queue-first: the API/event handler only persists
+      // the Notification row and hands off delivery to the worker via Bull.
+      // This keeps HTTP/event paths fast and lets Bull's retry / dead-letter
+      // / concurrency controls actually do their job. When Redis is
+      // disabled (e.g. local dev / tests) we fall back to the legacy inline
+      // call so behaviour is preserved end-to-end.
+      const notificationIdStr = notificationDoc._id.toString();
+      const useQueue = isRedisEnabled();
+
       try {
-        await deliverNotificationById(notificationDoc._id.toString());
-        enqueued += 1;
-        notificationIds.push(notificationDoc._id.toString());
-        incrementCounter("notifications_total", {
-          status: "triggered",
-          eventType,
-          role: notification.role,
-        });
+        if (useQueue) {
+          await notificationQueue.add(
+            NOTIFICATION_JOB_NAMES.SEND,
+            { notificationId: notificationIdStr },
+          );
+          enqueued += 1;
+          notificationIds.push(notificationIdStr);
+          incrementCounter("notifications_total", {
+            status: "queued",
+            eventType,
+            role: notification.role,
+          });
+        } else {
+          await deliverNotificationById(notificationIdStr);
+          enqueued += 1;
+          notificationIds.push(notificationIdStr);
+          incrementCounter("notifications_total", {
+            status: "triggered",
+            eventType,
+            role: notification.role,
+          });
+        }
       } catch (deliveryError) {
         await Notification.updateOne(
           { _id: notificationDoc._id },
@@ -203,11 +230,16 @@ export async function notify(eventType, payload = {}) {
           eventType,
           role: notification.role,
         });
-        logger.error("Failed to deliver notification", {
-          notificationId: notificationDoc._id.toString(),
-          eventType,
-          message: deliveryError.message,
-        });
+        logger.error(
+          useQueue
+            ? "Failed to enqueue notification for delivery"
+            : "Failed to deliver notification",
+          {
+            notificationId: notificationIdStr,
+            eventType,
+            message: deliveryError.message,
+          },
+        );
       }
     } catch (error) {
       skipped += 1;

@@ -267,15 +267,29 @@ async function startHttpServer() {
 async function startQueueWorkers() {
   const { registerOrderQueueProcessors } = await import("./app/queues/orderQueueProcessors.js");
   const { sellerTimeoutQueue, deliveryTimeoutQueue } = await import("./app/queues/orderQueues.js");
-  
+  const { registerNotificationQueueProcessors } = await import(
+    "./app/modules/notifications/notification.worker.js"
+  );
+  const { notificationQueue, notificationDeadQueue } = await import(
+    "./app/modules/notifications/notification.queue.js"
+  );
+
   registerOrderQueueProcessors();
-  
+  registerNotificationQueueProcessors();
+
   // Register queues for graceful shutdown
   registerBullQueue(sellerTimeoutQueue);
   registerBullQueue(deliveryTimeoutQueue);
-  
+  registerBullQueue(notificationQueue);
+  registerBullQueue(notificationDeadQueue);
+
   logger.info('Queue workers started', {
-    queues: ['seller-timeout', 'delivery-timeout'],
+    queues: [
+      'seller-timeout',
+      'delivery-timeout',
+      'notifications',
+      'notifications-dead',
+    ],
     role: getProcessRole()
   });
 }

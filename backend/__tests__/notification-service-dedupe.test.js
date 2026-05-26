@@ -40,10 +40,23 @@ jest.unstable_mockModule("../app/modules/notifications/notification.worker.js", 
   deliverNotificationById: mockDeliverNotificationById,
 }));
 
+jest.unstable_mockModule("../app/modules/notifications/notification.queue.js", () => ({
+  notificationQueue: {
+    add: jest.fn(),
+  },
+  NOTIFICATION_JOB_NAMES: {
+    SEND: "send-notification",
+    DEAD_LETTER: "dead-notification",
+  },
+}));
+
 jest.unstable_mockModule("../app/config/redis.js", () => ({
   getRedisClient: () => ({
     set: mockRedisSet,
   }),
+  // Force inline-delivery fallback so this test continues to assert the
+  // dedupe-then-deliver path without depending on a real Bull queue.
+  isRedisEnabled: () => false,
 }));
 
 jest.unstable_mockModule("../app/services/logger.js", () => ({
