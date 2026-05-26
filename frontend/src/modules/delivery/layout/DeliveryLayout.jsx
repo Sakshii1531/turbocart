@@ -40,7 +40,6 @@ const DeliveryLayout = () => {
   const [availableOrdersCount, setAvailableOrdersCount] = useState(0);
   const [isAcceptingOrder, setIsAcceptingOrder] = useState(false);
   const acceptInFlightRef = useRef(false);
-  const didInitialLocationSendRef = useRef(false);
   const availableOrdersRequestRef = useRef({ inFlight: false, controller: null });
   const notificationsRequestRef = useRef({ inFlight: false, controller: null });
   const locationRequestRef = useRef({ inFlight: false, controller: null });
@@ -438,28 +437,70 @@ const DeliveryLayout = () => {
     fetchAvailableOrders,
   ]);
 
-  // Real-time location while online — required for seller service-radius matching on new orders
+  // Background location heartbeat while the rider is online.
+  //
+  // Seller service-radius matching depends on the latest rider coords on
+  // the server. A one-shot `getCurrentPosition` at go-online time goes
+  // stale the moment the rider moves, so we run a `watchPosition` here
+  // and post a heartbeat at most once every 30s. (The richer/faster
+  // ~5s `watchPosition` inside `DeliveryTrackingMap` stays as-is for
+  // active deliveries; both can coexist — each has its own POST throttle
+  // and the backend further throttles via `shouldThrottle`.)
+  //
+  // Guards:
+  //   - online required (cleanup aborts in-flight POST when toggled off)
+  //   - tab hidden → keep updating the local cache so the next route
+  //     fetch / map mount uses fresh coords, but skip the network POST
+  //     to save battery; resumes on next visible fix.
   useEffect(() => {
-    if (!user?.isOnline || typeof navigator === "undefined" || !navigator.geolocation) {
-      didInitialLocationSendRef.current = false;
+    if (
+      !user?.isOnline ||
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
       if (locationRequestRef.current.controller) {
         locationRequestRef.current.controller.abort();
       }
       return undefined;
     }
 
-    if (didInitialLocationSendRef.current) return undefined;
-    didInitialLocationSendRef.current = true;
+    const HEARTBEAT_MS = 30000;
+    let lastPostAt = 0;
 
-    navigator.geolocation.getCurrentPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        postLocationOnce(pos.coords.latitude, pos.coords.longitude);
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+        // Always refresh the local cache so the map / route fetch always
+        // has the freshest coords when they mount.
+        saveDeliveryPartnerLocation(lat, lng);
+
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState === "hidden"
+        ) {
+          return;
+        }
+
+        const now = Date.now();
+        if (now - lastPostAt < HEARTBEAT_MS) return;
+        lastPostAt = now;
+        postLocationOnce(lat, lng);
       },
-      () => { },
-      { enableHighAccuracy: false, maximumAge: 30000, timeout: 20000 },
+      () => {
+        /* permission denied / position unavailable — silently ignore;
+           the rider just won't receive proximity matches until they
+           grant location or move into a covered area. */
+      },
+      { enableHighAccuracy: false, maximumAge: 15000, timeout: 30000 },
     );
 
     return () => {
+      if (watchId !== null && navigator.geolocation?.clearWatch) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       if (locationRequestRef.current.controller) {
         locationRequestRef.current.controller.abort();
       }
