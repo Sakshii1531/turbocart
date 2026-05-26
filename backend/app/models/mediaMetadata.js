@@ -8,6 +8,7 @@
  */
 
 import mongoose from 'mongoose';
+import { ALL_USER_MODEL_NAMES_WITH_LEGACY } from '../constants/refModels.js';
 
 const mediaMetadataSchema = new mongoose.Schema(
   {
@@ -109,10 +110,13 @@ const mediaMetadataSchema = new mongoose.Schema(
       required: true,
       refPath: 'uploadedByModel'
     },
+    // Phase 5 P5-2: enum widened to include canonical "User" while still
+    // accepting legacy "Customer" rows. The migration script rewrites
+    // existing "Customer" values to "User"; new code should write "User".
     uploadedByModel: {
       type: String,
       required: true,
-      enum: ['Customer', 'Seller', 'Admin', 'Delivery']
+      enum: ALL_USER_MODEL_NAMES_WITH_LEGACY,
     },
     entityType: {
       type: String,

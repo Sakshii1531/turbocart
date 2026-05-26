@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ALL_USER_MODEL_NAMES_WITH_LEGACY } from "../../constants/refModels.js";
 
 const otpSessionSchema = new mongoose.Schema(
   {
@@ -8,9 +9,11 @@ const otpSessionSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    // Phase 5 P5-2: enum widened to accept the canonical "User" while
+    // still tolerating legacy "Customer" rows from before the migration.
     userType: {
       type: String,
-      enum: ["Admin", "Seller", "Customer", "Delivery"],
+      enum: ALL_USER_MODEL_NAMES_WITH_LEGACY,
       required: true,
     },
     purpose: {

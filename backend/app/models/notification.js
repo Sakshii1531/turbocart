@@ -3,6 +3,7 @@ import {
   NOTIFICATION_ROLES,
   NOTIFICATION_EVENTS,
 } from "../modules/notifications/notification.constants.js";
+import { ALL_USER_MODEL_NAMES_WITH_LEGACY } from "../constants/refModels.js";
 
 const notificationSchema = new mongoose.Schema(
   {
@@ -65,10 +66,14 @@ const notificationSchema = new mongoose.Schema(
       refPath: "recipientModel",
       index: true,
     },
+    // Phase 5 P5-2: sourced from constants/refModels so the canonical
+    // names ("User", "Seller", "Delivery", "Admin") and the legacy
+    // alias ("Customer") stay in lock-step with the rest of the codebase
+    // until the migration script rewrites every historical row.
     recipientModel: {
       type: String,
       required: true,
-      enum: ["Seller", "Admin", "Customer", "Delivery", "User"],
+      enum: ALL_USER_MODEL_NAMES_WITH_LEGACY,
       index: true,
     },
     title: {

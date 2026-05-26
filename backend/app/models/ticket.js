@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ALL_USER_MODEL_NAMES_WITH_LEGACY } from "../constants/refModels.js";
 
 const ticketSchema = new mongoose.Schema(
     {
@@ -7,9 +8,13 @@ const ticketSchema = new mongoose.Schema(
             ref: "User",
             required: true,
         },
+        // Phase 5 P5-2: enum widened to include canonical "User" / "Delivery"
+        // while still accepting legacy "Customer" / "Rider" rows. The
+        // migration script rewrites existing values to the canonical form;
+        // new code should write the canonical names.
         userType: {
             type: String,
-            enum: ["Customer", "Seller", "Rider"],
+            enum: ALL_USER_MODEL_NAMES_WITH_LEGACY,
             required: true,
         },
         subject: {
