@@ -173,11 +173,77 @@ async function removeDeliveryTimeout(orderId, attempt = 1) {
   }
 }
 
+async function scheduleReturnPickupTimeout(orderId, attempt = 1) {
+  const delay = DEFAULT_RETURN_PICKUP_TIMEOUT_MS();
+  const jobId = returnPickupJobId(orderId, attempt);
+  const addPromise = returnPickupTimeoutQueue
+    .add(
+      JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+      { orderId, attempt },
+      {
+        delay,
+        jobId,
+        removeOnComplete: true,
+      },
+    )
+    .catch((err) => {
+      logger.warn("scheduleReturnPickupTimeoutJob add failed", {
+        scope: "scheduleReturnPickupTimeoutJob",
+        orderId,
+        error: err.message,
+      });
+    });
+  const timeoutMs = BULL_ADD_TIMEOUT_MS();
+  try {
+    await raceWithTimeout(
+      addPromise,
+      timeoutMs,
+      `return-pickup-timeout queue add exceeded ${timeoutMs}ms`,
+    );
+  } catch (e) {
+    logger.warn("scheduleReturnPickupTimeoutJob timed out", {
+      scope: "scheduleReturnPickupTimeoutJob",
+      orderId,
+      error: e.message,
+    });
+  }
+}
+
+async function removeReturnPickupTimeout(orderId, attempt = 1) {
+  const timeoutMs = BULL_ADD_TIMEOUT_MS();
+  const jobKey = returnPickupJobId(orderId, attempt);
+  const work = (async () => {
+    const job = await returnPickupTimeoutQueue.getJob(jobKey);
+    if (job) await job.remove();
+  })().catch((err) => {
+    logger.warn("removeReturnPickupTimeoutJob get/remove failed", {
+      scope: "removeReturnPickupTimeoutJob",
+      orderId,
+      error: err.message,
+    });
+  });
+  try {
+    await raceWithTimeout(
+      work,
+      timeoutMs,
+      `remove return-pickup job exceeded ${timeoutMs}ms`,
+    );
+  } catch (e) {
+    logger.warn("removeReturnPickupTimeoutJob timed out", {
+      scope: "removeReturnPickupTimeoutJob",
+      orderId,
+      error: e.message,
+    });
+  }
+}
+
 export const bullJobScheduler = {
   scheduleSellerTimeout,
   removeSellerTimeout,
   scheduleDeliveryTimeout,
   removeDeliveryTimeout,
+  scheduleReturnPickupTimeout,
+  removeReturnPickupTimeout,
 };
 
 export default bullJobScheduler;

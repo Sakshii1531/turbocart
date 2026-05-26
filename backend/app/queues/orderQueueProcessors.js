@@ -1,7 +1,13 @@
-import { sellerTimeoutQueue, deliveryTimeoutQueue, JOB_NAMES } from "./orderQueues.js";
+import {
+  sellerTimeoutQueue,
+  deliveryTimeoutQueue,
+  returnPickupTimeoutQueue,
+  JOB_NAMES,
+} from "./orderQueues.js";
 import {
   processSellerTimeoutJob,
   processDeliveryTimeoutJob,
+  processReturnPickupTimeoutJob,
 } from "../services/orderWorkflowService.js";
 import { isRedisEnabled } from "../config/redis.js";
 import logger from "../services/logger.js";
@@ -123,6 +129,58 @@ export function registerOrderQueueProcessors() {
     }
   });
 
+  // Return-pickup timeout queue processor — same shape as delivery timeout.
+  returnPickupTimeoutQueue.process(JOB_NAMES.RETURN_PICKUP_TIMEOUT, async (job) => {
+    const startTime = Date.now();
+
+    try {
+      logger.info('Processing return-pickup timeout job', {
+        jobId: job.id,
+        jobType: JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+        orderId: job.data.orderId,
+        attempt: job.attemptsMade + 1,
+      });
+
+      await processReturnPickupTimeoutJob(job.data);
+
+      const duration = Date.now() - startTime;
+
+      logger.info('Return-pickup timeout job completed', {
+        jobId: job.id,
+        jobType: JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+        orderId: job.data.orderId,
+        duration,
+      });
+
+      incrementCounter('queue_jobs_total', {
+        queue: 'return-pickup-timeout',
+        status: 'completed',
+      });
+      recordHistogram('queue_job_duration_seconds', duration / 1000, {
+        queue: 'return-pickup-timeout',
+      });
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      logger.error('Return-pickup timeout job failed', {
+        jobId: job.id,
+        jobType: JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+        orderId: job.data.orderId,
+        attempt: job.attemptsMade + 1,
+        duration,
+        error: error.message,
+        stack: error.stack,
+      });
+
+      incrementCounter('queue_jobs_total', {
+        queue: 'return-pickup-timeout',
+        status: 'failed',
+      });
+
+      throw error;
+    }
+  });
+
   // Queue event handlers
   sellerTimeoutQueue.on("failed", (job, err) => {
     logger.error('Seller timeout queue job failed', {
@@ -155,8 +213,28 @@ export function registerOrderQueueProcessors() {
       orderId: job?.data?.orderId
     });
   });
-  
+
+  returnPickupTimeoutQueue.on("failed", (job, err) => {
+    logger.error('Return-pickup timeout queue job failed', {
+      jobId: job?.id,
+      jobType: JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+      orderId: job?.data?.orderId,
+      error: err?.message,
+    });
+  });
+
+  returnPickupTimeoutQueue.on("completed", (job) => {
+    logger.debug('Return-pickup timeout queue job completed', {
+      jobId: job?.id,
+      orderId: job?.data?.orderId,
+    });
+  });
+
   logger.info('Order queue processors registered', {
-    queues: [JOB_NAMES.SELLER_TIMEOUT, JOB_NAMES.DELIVERY_TIMEOUT]
+    queues: [
+      JOB_NAMES.SELLER_TIMEOUT,
+      JOB_NAMES.DELIVERY_TIMEOUT,
+      JOB_NAMES.RETURN_PICKUP_TIMEOUT,
+    ]
   });
 }

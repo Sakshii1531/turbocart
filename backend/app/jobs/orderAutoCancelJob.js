@@ -1,7 +1,11 @@
 import dotenv from "dotenv";
 import Order from "../models/order.js";
 import { WORKFLOW_STATUS } from "../constants/orderWorkflow.js";
-import { processSellerTimeoutJob, processDeliveryTimeoutJob } from "../services/orderWorkflowService.js";
+import {
+  processSellerTimeoutJob,
+  processDeliveryTimeoutJob,
+  processReturnPickupTimeoutJob,
+} from "../services/orderWorkflowService.js";
 import { compensateOrderCancellation } from "../services/orderCompensation.js";
 import { emitNotificationEvent } from "../modules/notifications/notification.emitter.js";
 import { NOTIFICATION_EVENTS } from "../modules/notifications/notification.constants.js";
@@ -63,6 +67,30 @@ const autoCancelExpiredOrders = async () => {
           jobName: 'orderAutoCancelJob',
           orderId: row.orderId,
           error: err.message
+        });
+      }
+    }
+
+    // Return-pickup broadcast loop — safety net for when Bull/Redis is down
+    // or a worker missed a job. Same semantics as the delivery-search
+    // fallback above.
+    const returnPickupExpired = await Order.find({
+      returnStatus: "return_pickup_assigned",
+      returnDeliveryBoy: null,
+      returnSearchExpiresAt: { $lte: now },
+    })
+      .select("orderId returnSearchMeta")
+      .lean();
+
+    for (const row of returnPickupExpired) {
+      try {
+        const attempt = row.returnSearchMeta?.attempt || 1;
+        await processReturnPickupTimeoutJob({ orderId: row.orderId, attempt });
+      } catch (err) {
+        logger.error('return-pickup timeout failed', {
+          jobName: 'orderAutoCancelJob',
+          orderId: row.orderId,
+          error: err.message,
         });
       }
     }
@@ -157,17 +185,19 @@ const autoCancelExpiredOrders = async () => {
     const n =
       v2Expired.length +
       v2DeliveryExpired.length +
+      returnPickupExpired.length +
       paymentExpiredOrders.length +
       legacyExpired.length;
-    
+
     const duration = Date.now() - startTime;
-    
+
     if (n > 0) {
       logger.info('Order auto-cancel job completed', {
         jobName: 'orderAutoCancelJob',
         duration,
         v2SellerExpired: v2Expired.length,
         v2DeliveryExpired: v2DeliveryExpired.length,
+        returnPickupExpired: returnPickupExpired.length,
         paymentExpired: paymentExpiredOrders.length,
         legacyExpired: legacyExpired.length,
         total: n

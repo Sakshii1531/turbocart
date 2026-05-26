@@ -336,14 +336,32 @@ export async function fetchAvailableOrdersForDelivery({
 
   let returnPickups = [];
   if (showReturns) {
+    const now = new Date();
     const returnPickupsRaw = await Order.find({
-      returnStatus: { $in: ["return_approved", "return_pickup_assigned"] },
       skippedBy: { $nin: [userId] },
       $or: [
+        // Manual reassign queue — seller picked "no specific rider" but
+        // the broadcast loop hasn't been kicked off yet (or it expired
+        // out). These stay visible until a seller re-assigns.
         {
+          returnStatus: "return_approved",
           returnDeliveryBoy: null,
           seller: { $in: sellerIds },
         },
+        // Active broadcast — only show while the assignment window is
+        // still open. Legacy rows without a stored expiry stay visible
+        // for backwards compatibility.
+        {
+          returnStatus: "return_pickup_assigned",
+          returnDeliveryBoy: null,
+          seller: { $in: sellerIds },
+          $or: [
+            { returnSearchExpiresAt: { $exists: false } },
+            { returnSearchExpiresAt: null },
+            { returnSearchExpiresAt: { $gt: now } },
+          ],
+        },
+        // Mine to handle right now — always show, regardless of expiry.
         {
           returnDeliveryBoy: userId,
         },

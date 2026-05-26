@@ -18,6 +18,8 @@ import {
   sellerRejectAtomic,
   deliveryAcceptAtomic,
   customerCancelV2,
+  startReturnPickupBroadcast,
+  removeReturnPickupTimeoutJob,
 } from "../services/orderWorkflowService.js";
 import { applyDeliveredSettlement } from "../services/orderSettlement.js";
 import {
@@ -43,7 +45,6 @@ import { emitNotificationEvent } from "../modules/notifications/notification.emi
 import { NOTIFICATION_EVENTS } from "../modules/notifications/notification.constants.js";
 import {
   emitDeliveryBroadcastForSeller,
-  emitReturnBroadcastForCustomer,
   retractDeliveryBroadcastForOrder,
   emitToSeller,
   emitToDelivery,
@@ -768,6 +769,9 @@ export const assignReturnDelivery = async (req, res) => {
 
     await order.save();
     if (riderId) {
+      // Manual assignment — no broadcast state machine needed. The rider
+      // already has a direct task; UI shows a fixed 60s acceptance window.
+      const directExpiresAt = new Date(Date.now() + 60 * 1000).toISOString();
       emitNotificationEvent(NOTIFICATION_EVENTS.RETURN_PICKUP_ASSIGNED, {
         orderId: order.orderId,
         deliveryId: riderId,
@@ -784,33 +788,21 @@ export const assignReturnDelivery = async (req, res) => {
             drop: "Seller Store",
             total: order.pricing?.total || 0,
           },
-          deliverySearchExpiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
+          deliverySearchExpiresAt: directExpiresAt,
           at: new Date().toISOString(),
         },
       });
     } else {
-      // Trigger broadcast for nearby riders
-      const payload = {
-        orderId: order.orderId,
-        type: "RETURN_PICKUP",
-        isReturnPickup: true,
-        items: (order.items || []).map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          image: item.image || item.thumbnail
-        })),
-        preview: {
-          pickup: order.address?.completeAddress || "Customer Address",
-          drop: order.sellerBranchArea || "Seller Store",
-          total: order.pricing?.total || 0,
-          earnings: order.riderEarnings || 0,
-        },
-        deliverySearchExpiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
-      };
-
-      // Trigger broadcast for nearby riders (Riders near Customer for returns)
-      const customerLocation = order.address?.location;
-      emitReturnBroadcastForCustomer(customerLocation, payload);
+      // Broadcast assignment — hand off to the workflow service so the
+      // pickup gets a real timeout / rebroadcast / radius-expansion loop
+      // instead of a one-shot socket emit with a fake 60s expiry.
+      const broadcastResult = await startReturnPickupBroadcast(order);
+      if (broadcastResult) {
+        // Reflect the persisted expiry/meta in the response so admin UIs
+        // can show the live deadline instead of a stale snapshot.
+        order.returnSearchExpiresAt = broadcastResult.returnSearchExpiresAt;
+        order.returnSearchMeta = broadcastResult.returnSearchMeta;
+      }
 
       emitNotificationEvent(NOTIFICATION_EVENTS.RETURN_PICKUP_ASSIGNED, {
         orderId: order.orderId,
@@ -858,7 +850,22 @@ export const acceptReturnPickup = async (req, res) => {
     if (!order.returnDeliveryBoy) {
       order.returnDeliveryBoy = userId;
       order.returnStatus = "return_pickup_assigned";
+      const acceptedAttempt = order.returnSearchMeta?.attempt || 1;
+      // Clear the assignment expiry now that a rider owns this pickup —
+      // prevents the orderQueryService stale-filter from accidentally
+      // hiding this pickup from the rider's own task list.
+      order.returnSearchExpiresAt = undefined;
       await order.save();
+
+      // Cancel the pending timeout for whichever attempt the rider grabbed.
+      try {
+        await removeReturnPickupTimeoutJob(order.orderId, acceptedAttempt);
+      } catch (e) {
+        logger.warn("acceptReturnPickup remove timeout failed", {
+          scope: "acceptReturnPickup",
+          error: e.message,
+        });
+      }
 
       // Retract broadcast so other riders stop seeing this task
       try {
@@ -923,12 +930,27 @@ export const rejectReturnPickup = async (req, res) => {
       return handleResponse(res, 400, "Cannot reject in current status.");
     }
 
+    const rejectedAttempt = order.returnSearchMeta?.attempt || 1;
     order.returnDeliveryBoy = null;
     if (!order.skippedBy.includes(userId)) {
       order.skippedBy.push(userId);
     }
     order.returnStatus = "return_approved";
+    order.returnSearchExpiresAt = undefined;
+    order.returnSearchMeta = undefined;
     await order.save();
+
+    // Cancel any pending broadcast-timeout for this attempt — we're
+    // leaving the broadcast pool, so the radius-expansion clock should
+    // not keep ticking.
+    try {
+      await removeReturnPickupTimeoutJob(order.orderId, rejectedAttempt);
+    } catch (e) {
+      logger.warn("rejectReturnPickup remove timeout failed", {
+        scope: "rejectReturnPickup",
+        error: e.message,
+      });
+    }
 
     // Notify seller
     emitNotificationEvent(NOTIFICATION_EVENTS.RETURN_REJECTED, {

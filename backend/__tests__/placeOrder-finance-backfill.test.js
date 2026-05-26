@@ -42,6 +42,8 @@ jest.unstable_mockModule("../app/services/orderWorkflowService.js", () => ({
   deliveryAcceptAtomic: jest.fn(),
   customerCancelV2: jest.fn(),
   resolveWorkflowStatus: jest.fn(),
+  startReturnPickupBroadcast: jest.fn(),
+  removeReturnPickupTimeoutJob: jest.fn(),
 }));
 
 jest.unstable_mockModule("../app/services/orderSettlement.js", () => ({

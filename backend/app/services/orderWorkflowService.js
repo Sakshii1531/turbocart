@@ -9,6 +9,10 @@ import {
   workflowFromLegacyStatus,
   DEFAULT_SELLER_TIMEOUT_MS,
   DEFAULT_DELIVERY_TIMEOUT_MS,
+  DEFAULT_RETURN_PICKUP_TIMEOUT_MS,
+  RETURN_PICKUP_SEARCH_MAX_ATTEMPTS,
+  INITIAL_RETURN_PICKUP_RADIUS_M,
+  RETURN_PICKUP_RADIUS_MULTIPLIER,
 } from "../constants/orderWorkflow.js";
 import { compensateOrderCancellation } from "./orderCompensation.js";
 import { getRedisClient } from "../config/redis.js";
@@ -17,11 +21,14 @@ import {
   removeSellerTimeout,
   scheduleDeliveryTimeout,
   removeDeliveryTimeout,
+  scheduleReturnPickupTimeout,
+  removeReturnPickupTimeout,
 } from "./workflow/jobSchedulerPort.js";
 import {
   emitOrderStatusUpdate,
   emitToSeller,
   emitDeliveryBroadcastForSeller,
+  emitReturnBroadcastForCustomer,
   emitToCustomer,
   retractDeliveryBroadcastForOrder,
 } from "./orderSocketEmitter.js";
@@ -114,6 +121,14 @@ export async function scheduleDeliveryTimeoutJob(orderId, attempt = 1) {
 
 export async function removeDeliveryTimeoutJob(orderId, attempt = 1) {
   return removeDeliveryTimeout(orderId, attempt);
+}
+
+export async function scheduleReturnPickupTimeoutJob(orderId, attempt = 1) {
+  return scheduleReturnPickupTimeout(orderId, attempt);
+}
+
+export async function removeReturnPickupTimeoutJob(orderId, attempt = 1) {
+  return removeReturnPickupTimeout(orderId, attempt);
 }
 
 /**
@@ -509,6 +524,186 @@ export async function processDeliveryTimeoutJob({ orderId, attempt }) {
       "Order was cancelled because no delivery partner was available.",
     sellerMessage:
       `Order #${updated.orderId} was cancelled because no delivery partner was available.`,
+  });
+}
+
+/**
+ * Build a return-pickup broadcast payload that mirrors the delivery-broadcast
+ * shape used by riders today. Keeping fields stable means delivery clients
+ * don't need to be updated when this state machine fires re-broadcasts.
+ */
+function returnPickupBroadcastPayloadFromOrder(order, extra = {}) {
+  const meta = order.returnSearchMeta || {};
+  const items = Array.isArray(order.items)
+    ? order.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        image: item.image || item.thumbnail,
+      }))
+    : [];
+  return {
+    orderId: order.orderId,
+    type: "RETURN_PICKUP",
+    isReturnPickup: true,
+    radiusMeters: meta.radiusMeters ?? INITIAL_RETURN_PICKUP_RADIUS_M(),
+    items,
+    preview: {
+      pickup: order.address?.completeAddress || "Customer Address",
+      drop: order.sellerBranchArea || "Seller Store",
+      total: order.pricing?.total ?? 0,
+      earnings: order.riderEarnings ?? 0,
+    },
+    deliverySearchExpiresAt: order.returnSearchExpiresAt,
+    ...extra,
+  };
+}
+
+/**
+ * Kick off a return-pickup broadcast with a real timeout / retry state
+ * machine — analogous to delivery search. Persists `returnSearchExpiresAt`
+ * + `returnSearchMeta`, emits the broadcast, and schedules attempt 1's
+ * timeout job. Idempotent: if a search is already in flight we bail out
+ * so re-triggering the seller flow can't blow up the schedule.
+ */
+export async function startReturnPickupBroadcast(order) {
+  if (!order || !order.orderId) return null;
+
+  const now = new Date();
+  const returnMs = DEFAULT_RETURN_PICKUP_TIMEOUT_MS();
+  const radius = INITIAL_RETURN_PICKUP_RADIUS_M();
+  const expiresAt = new Date(now.getTime() + returnMs);
+
+  const updated = await Order.findOneAndUpdate(
+    {
+      orderId: order.orderId,
+      returnStatus: "return_pickup_assigned",
+      returnDeliveryBoy: null,
+    },
+    {
+      $set: {
+        returnSearchExpiresAt: expiresAt,
+        returnSearchMeta: {
+          radiusMeters: radius,
+          attempt: 1,
+          lastBroadcastAt: now,
+        },
+      },
+    },
+    { new: true },
+  );
+  if (!updated) return null;
+
+  await scheduleReturnPickupTimeoutJob(updated.orderId, 1);
+
+  const customerLocation = updated.address?.location;
+  await emitReturnBroadcastForCustomer(
+    customerLocation,
+    returnPickupBroadcastPayloadFromOrder(updated),
+  );
+
+  return updated;
+}
+
+/**
+ * Bull processor for return-pickup timeout jobs. On each fire:
+ *   - If the pickup was accepted / status moved on → exit.
+ *   - If still in flight and the expiry has lapsed:
+ *       - Under max attempts → expand radius, re-broadcast, schedule next.
+ *       - At max attempts → revert to "return_approved" and ping the seller.
+ */
+export async function processReturnPickupTimeoutJob({ orderId, attempt }) {
+  const now = new Date();
+  const order = await Order.findOne({ orderId });
+  if (!order) return;
+
+  if (
+    order.returnStatus !== "return_pickup_assigned" ||
+    order.returnDeliveryBoy
+  ) {
+    return;
+  }
+
+  if (order.returnSearchExpiresAt && order.returnSearchExpiresAt > now) {
+    return;
+  }
+
+  const meta = order.returnSearchMeta || {};
+  const currentAttempt = meta.attempt || attempt || 1;
+  const maxAttempts = RETURN_PICKUP_SEARCH_MAX_ATTEMPTS();
+
+  if (currentAttempt < maxAttempts) {
+    const nextRadius = Math.round(
+      (meta.radiusMeters || INITIAL_RETURN_PICKUP_RADIUS_M()) *
+        RETURN_PICKUP_RADIUS_MULTIPLIER(),
+    );
+    const returnMs = DEFAULT_RETURN_PICKUP_TIMEOUT_MS();
+    const nextExpiry = new Date(now.getTime() + returnMs);
+
+    const updated = await Order.findOneAndUpdate(
+      {
+        orderId,
+        returnStatus: "return_pickup_assigned",
+        returnDeliveryBoy: null,
+      },
+      {
+        $set: {
+          returnSearchExpiresAt: nextExpiry,
+          returnSearchMeta: {
+            radiusMeters: nextRadius,
+            attempt: currentAttempt + 1,
+            lastBroadcastAt: now,
+          },
+        },
+      },
+      { new: true },
+    );
+    if (!updated) return;
+
+    await scheduleReturnPickupTimeoutJob(orderId, currentAttempt + 1);
+
+    const customerLocation = updated.address?.location;
+    await emitReturnBroadcastForCustomer(
+      customerLocation,
+      returnPickupBroadcastPayloadFromOrder(updated, {
+        retryAttempt: currentAttempt + 1,
+      }),
+    );
+    return;
+  }
+
+  // Out of attempts — back to "approved" so the seller can re-assign manually.
+  const reverted = await Order.findOneAndUpdate(
+    {
+      orderId,
+      returnStatus: "return_pickup_assigned",
+      returnDeliveryBoy: null,
+    },
+    {
+      $set: { returnStatus: "return_approved" },
+      $unset: { returnSearchExpiresAt: 1, returnSearchMeta: 1 },
+    },
+    { new: true },
+  );
+  if (!reverted) return;
+
+  try {
+    await retractDeliveryBroadcastForOrder(reverted.orderId, null);
+  } catch (e) {
+    logger.warn("processReturnPickupTimeoutJob retract failed", {
+      scope: "processReturnPickupTimeoutJob",
+      orderId,
+      error: e.message,
+    });
+  }
+
+  emitNotificationEvent(NOTIFICATION_EVENTS.RETURN_REJECTED, {
+    orderId: reverted.orderId,
+    sellerId: reverted.seller,
+    customerId: reverted.customer,
+    data: {
+      reason:
+        "No delivery partner was available for the return pickup. Please reassign manually.",
+    },
   });
 }
 
