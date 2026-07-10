@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence, useAnimation, useDragControls } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { X, ChevronDown, Share2, Heart, Search, Clock, Minus, Plus, ShoppingBag, Star, MessageSquare, ArrowLeft, ChevronRight } from 'lucide-react';
 import { useProductDetail } from '../../context/ProductDetailContext';
 import { useCart } from '../../context/CartContext';
@@ -64,6 +64,9 @@ const ProductDetailSheet = () => {
     const { selectedProduct, isOpen, closeProduct } = useProductDetail();
     const { cart, cartCount, addToCart, updateQuantity, removeFromCart, cartTotal } = useCart();
     const { toggleWishlist: toggleWishlistGlobal, isInWishlist } = useWishlist();
+
+    const location = useLocation();
+    const isWishlistPage = location.pathname === '/wishlist';
     const { showToast } = useToast();
     const { settings } = useSettings();
     const { currentLocation } = useAppLocation();
@@ -278,6 +281,13 @@ const ProductDetailSheet = () => {
             variantSku: String(selectedVariant?.sku || selectedVariant?.name || "").trim(),
         });
         showToast(`${selectedProduct.name} added to cart`, 'success');
+        
+        if (isWishlistPage) {
+            const isWishlisted = isInWishlist(selectedProduct.id || selectedProduct._id);
+            if (isWishlisted) {
+                toggleWishlistGlobal(selectedProduct);
+            }
+        }
     };
 
     const handleIncrement = () =>
@@ -658,7 +668,7 @@ const ProductDetailSheet = () => {
                                                     ].map((d) => (
                                                         <div key={d.label} className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 group hover:bg-white hover:shadow-sm transition-all">
                                                             <span className="text-[10px] text-slate-400 block mb-0.5 font-bold uppercase tracking-wider">{d.label}</span>
-                                                            <span className="font-black text-slate-800 text-[12px]">{d.value}</span>
+                                                            <span className="font-black text-slate-800 text-[12px] break-all">{d.value}</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -943,7 +953,7 @@ const ProductDetailSheet = () => {
                                             ].map((d) => (
                                                 <div key={d.label} className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                                     <span className="text-gray-400 block mb-0.5 text-[10px] font-bold uppercase tracking-wider">{d.label}</span>
-                                                    <span className="font-black text-slate-800 text-xs">{d.value}</span>
+                                                    <span className="font-black text-slate-800 text-xs break-all">{d.value}</span>
                                                 </div>
                                             ))}
                                         </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Heart, Plus, Minus, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,9 @@ const ProductCard = React.memo(
 
     const { openProduct } = useProductDetail();
     const [showHeartPopup, setShowHeartPopup] = React.useState(false);
+    
+    const location = useLocation();
+    const isWishlistPage = location.pathname === '/wishlist';
 
     const imageRef = React.useRef(null);
 
@@ -108,6 +111,15 @@ const ProductCard = React.memo(
       (e) => {
         e.preventDefault();
         e.stopPropagation();
+
+        // If the product has multiple variants, open the product detail sheet
+        // so the user can select which variant they want to add.
+        const variants = Array.isArray(product?.variants) ? product.variants : [];
+        if (variants.length > 1 && openProduct) {
+          openProduct(product);
+          return;
+        }
+
         if (imageRef.current) {
           animateAddToCart(
             imageRef.current.getBoundingClientRect(),
@@ -119,8 +131,12 @@ const ProductCard = React.memo(
           variantSku: variantKey,
           variantName: defaultVariant?.name || "",
         });
+        
+        if (isWishlistPage && isWishlisted) {
+          toggleWishlistGlobal(product);
+        }
       },
-      [animateAddToCart, product, addToCart, variantKey, defaultVariant?.name],
+      [animateAddToCart, product, addToCart, variantKey, defaultVariant?.name, openProduct, isWishlistPage, isWishlisted, toggleWishlistGlobal],
     );
 
     const handleIncrement = React.useCallback(

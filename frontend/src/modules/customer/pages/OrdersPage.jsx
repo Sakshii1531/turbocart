@@ -142,7 +142,7 @@ const OrdersPage = () => {
                             </div>
 
                             <div className="border-t border-slate-100 pt-3 flex justify-between items-center gap-3">
-                                <div className="text-[11px] text-slate-500 font-medium truncate max-w-[230px]">
+                                <div className="text-[11px] text-slate-500 font-medium truncate flex-1 min-w-0">
                                     {order.items.map((i) => i.name).join(', ')}
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
