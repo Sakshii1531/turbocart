@@ -60,6 +60,7 @@ const DeliveryAuth = () => {
   const [signupAccountNumber, setSignupAccountNumber] = useState("");
   const [signupIfsc, setSignupIfsc] = useState("");
   const [signupAccountHolder, setSignupAccountHolder] = useState("");
+  const [signupPreferredArea, setSignupPreferredArea] = useState("");
   const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [profileImagePreview, setProfileImagePreview] = useState("");
@@ -230,6 +231,7 @@ const DeliveryAuth = () => {
         formData.append("accountHolder", signupAccountHolder);
         formData.append("accountNumber", signupAccountNumber);
         formData.append("ifsc", signupIfsc);
+        formData.append("currentArea", signupPreferredArea);
 
         if (profileImageFile) formData.append("profileImage", profileImageFile);
         if (aadharFile) formData.append("aadhar", aadharFile);
@@ -303,6 +305,7 @@ const DeliveryAuth = () => {
     setSignupAccountNumber("");
     setSignupIfsc("");
     setSignupAccountHolder("");
+    setSignupPreferredArea("");
     setAadharFile(null);
     setPanFile(null);
     setDlFile(null);
@@ -506,6 +509,20 @@ const DeliveryAuth = () => {
                                 onChange={(e) => setSignupAddress(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all resize-none h-24"
                                 placeholder="Complete building address..."
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Preferred Delivery Area</label>
+                            <div className="relative">
+                              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 w-4 h-4" />
+                              <input
+                                type="text"
+                                value={signupPreferredArea}
+                                onChange={(e) => setSignupPreferredArea(e.target.value)}
+                                className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all"
+                                placeholder="E.g. Downtown, North Side, etc."
                               />
                             </div>
                           </div>

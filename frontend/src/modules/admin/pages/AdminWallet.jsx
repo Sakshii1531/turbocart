@@ -605,7 +605,7 @@ const AdminWallet = () => {
                                 <button
                                     onClick={handleProcessPayouts}
                                     disabled={isProcessing}
-                                    className="w-full py-4 bg-brand-500 hover:bg-brand-400 text-slate-900 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-50"
+                                    className="w-full py-4 bg-white hover:bg-slate-100 text-slate-900 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 group disabled:opacity-50"
                                 >
                                     {isProcessing ? <RotateCw className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4 group-hover:rotate-12 transition-transform" />}
                                     {isProcessing ? 'SETTLING...' : 'Bulk Settlement'}

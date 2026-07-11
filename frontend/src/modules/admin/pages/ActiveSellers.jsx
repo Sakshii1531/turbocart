@@ -16,6 +16,7 @@ import {
   HiOutlineClock,
   HiOutlineArrowPath,
   HiOutlineDocumentText,
+  HiOutlineTrash,
 } from "react-icons/hi2";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -104,6 +105,7 @@ const ActiveSellers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
   const [selectedSeller, setSelectedSeller] = useState(null);
 
@@ -173,6 +175,21 @@ const ActiveSellers = () => {
 
     loadSellers();
   }, [debouncedSearch, categoryFilter, sortBy, page, pageSize, refreshTick]);
+
+  const handleDeleteSeller = async (sellerId) => {
+    if (!window.confirm("Are you sure you want to delete this store? This action cannot be undone.")) return;
+    setIsDeleting(true);
+    try {
+      await adminApi.rejectSeller(sellerId, { reason: "Deleted by Admin" });
+      toast.success("Store deleted successfully");
+      setSelectedSeller(null);
+      setRefreshTick((t) => t + 1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete store");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const summaryCards = useMemo(
     () => [
@@ -285,7 +302,7 @@ const ActiveSellers = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto">
             <select
               value={categoryFilter}
               onChange={(event) => setCategoryFilter(event.target.value)}
@@ -310,14 +327,6 @@ const ActiveSellers = () => {
                 </option>
               ))}
             </select>
-
-            <button
-              onClick={() => setRefreshTick((value) => value + 1)}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-white ring-1 ring-slate-200 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
-            >
-              <HiOutlineFunnel className="h-4 w-4" />
-              Filter
-            </button>
           </div>
         </div>
       </Card>
@@ -673,6 +682,18 @@ const ActiveSellers = () => {
                   </div>
 
                   <div className="mt-6 flex items-center justify-end gap-3">
+                    <button
+                      onClick={() => handleDeleteSeller(selectedSeller.id)}
+                      disabled={isDeleting}
+                      className="px-4 py-2.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-xs font-bold hover:bg-rose-100 hover:border-rose-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <HiOutlineArrowPath className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <HiOutlineTrash className="h-4 w-4" />
+                      )}
+                      Delete Store
+                    </button>
                     <button
                       onClick={() => setSelectedSeller(null)}
                       className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all"

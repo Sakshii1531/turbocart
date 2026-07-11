@@ -22,9 +22,15 @@ const AdminAuth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const { login } = useAuth();
+    const { login, isAuthenticated, role } = useAuth();
     const { settings } = useSettings();
     const navigate = useNavigate();
+
+    React.useEffect(() => {
+        if (isAuthenticated && role === 'admin') {
+            navigate('/admin', { replace: true });
+        }
+    }, [isAuthenticated, role, navigate]);
     const appName = settings?.appName || 'App';
     const logoUrl = settings?.logoUrl || '';
 

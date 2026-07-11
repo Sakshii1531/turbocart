@@ -56,12 +56,14 @@ export async function getSellerLocationsData({
     });
   }
 
-  const baseQuery = filters.length ? { $and: filters } : {};
-  const sellers = await Seller.find(baseQuery)
-    .select(
-      "_id name shopName email phone category address location serviceRadius isActive isVerified applicationStatus reviewedAt createdAt rejectionReason",
-    )
-    .lean();
+  const [sellers, allSellersBase] = await Promise.all([
+    Seller.find(baseQuery)
+      .select(
+        "_id name shopName email phone category address location serviceRadius isActive isVerified applicationStatus reviewedAt createdAt rejectionReason",
+      )
+      .lean(),
+    Seller.find({}).select("address category").lean()
+  ]);
 
   const filteredByStatus = sellers.filter((seller) =>
     matchSellerLifecycleFilter(seller, normalizedLifecycle),
@@ -196,8 +198,8 @@ export async function getSellerLocationsData({
 
   const allCities = [
     ...new Set(
-      sellersWithDerivedFields
-        .map((row) => row.city)
+      allSellersBase
+        .map((row) => extractSellerCity(row))
         .filter(Boolean)
         .map((value) => String(value).trim()),
     ),
@@ -205,7 +207,7 @@ export async function getSellerLocationsData({
 
   const allCategories = [
     ...new Set(
-      sellersWithDerivedFields
+      allSellersBase
         .map((row) => row.category || "General")
         .filter(Boolean)
         .map((value) => String(value).trim()),

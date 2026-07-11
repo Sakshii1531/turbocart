@@ -40,12 +40,16 @@ const ProductManagement = () => {
     const [filterCategory, setFilterCategory] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all'); // Added filterStatus
     const [filterApprovalStatus, setFilterApprovalStatus] = useState('all');
+    const [filterStockStatus, setFilterStockStatus] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [moderationCounts, setModerationCounts] = useState({
         all: 0,
         pending: 0,
         approved: 0,
         rejected: 0,
+        active: 0,
+        lowStock: 0,
+        outOfStock: 0
     });
     const [moderatingActionId, setModeratingActionId] = useState('');
 
@@ -105,6 +109,7 @@ const ProductManagement = () => {
             if (filterCategory !== 'all') params.category = filterCategory;
             if (filterStatus !== 'all') params.status = filterStatus;
             if (filterApprovalStatus !== 'all') params.approvalStatus = filterApprovalStatus;
+            if (filterStockStatus !== 'all') params.stockStatus = filterStockStatus;
             if (sortBy) params.sort = sortBy;
 
             const response = await adminApi.getProductModerationList(params);
@@ -119,6 +124,9 @@ const ProductManagement = () => {
                     pending: Number(payload?.counts?.pending || 0),
                     approved: Number(payload?.counts?.approved || 0),
                     rejected: Number(payload?.counts?.rejected || 0),
+                    active: Number(payload?.counts?.active || 0),
+                    lowStock: Number(payload?.counts?.lowStock || 0),
+                    outOfStock: Number(payload?.counts?.outOfStock || 0),
                 });
             }
         } catch (error) {
@@ -137,7 +145,7 @@ const ProductManagement = () => {
             fetchProducts(1);
         }, 500); // Debounce search
         return () => clearTimeout(timer);
-    }, [searchTerm, filterCategory, filterStatus, filterApprovalStatus, sortBy, pageSize]);
+    }, [searchTerm, filterCategory, filterStatus, filterApprovalStatus, filterStockStatus, sortBy, pageSize]);
 
     const handleSave = async () => {
         if (!editingItem) {
@@ -336,12 +344,21 @@ const ProductManagement = () => {
     };
 
     const productsList = Array.isArray(products) ? products : [];
-    const stats = useMemo(() => ({
-        total: total,
-        lowStock: productsList.filter(p => p.stock > 0 && p.stock <= 10).length,
-        outOfStock: productsList.filter(p => p.stock === 0).length,
-        active: productsList.filter(p => p.status === 'active').length
-    }), [productsList, total]);
+    const getEffectiveStock = (p) => {
+        if (p.variants && p.variants.length > 0) {
+            return p.variants.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
+        }
+        return Number(p.stock) || 0;
+    };
+
+    const stats = useMemo(() => {
+        return {
+            total: moderationCounts.all || total,
+            lowStock: moderationCounts.lowStock || 0,
+            outOfStock: moderationCounts.outOfStock || 0,
+            active: moderationCounts.active || 0
+        };
+    }, [moderationCounts, total]);
 
     const StatusBadge = ({ status, stock }) => {
         if (stock === 0) return <Badge variant="error" className="text-[10px] px-1.5 py-0">Out of Stock</Badge>;
@@ -377,12 +394,23 @@ const ProductManagement = () => {
             {/* Quick Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'All Items', val: stats.total, icon: HiOutlineCube, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { label: 'Active Items', val: stats.active, icon: HiOutlineCheckCircle, color: 'text-brand-600', bg: 'bg-brand-50' },
-                    { label: 'Low Stock', val: stats.lowStock, icon: HiOutlineExclamationCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-                    { label: 'Out of Stock', val: stats.outOfStock, icon: HiOutlineArchiveBox, color: 'text-rose-600', bg: 'bg-rose-50' }
+                    { id: 'all', label: 'All Items', val: stats.total, icon: HiOutlineCube, color: 'text-brand-600', bg: 'bg-brand-50' },
+                    { id: 'active', label: 'Active Items', val: stats.active, icon: HiOutlineCheckCircle, color: 'text-brand-600', bg: 'bg-brand-50' },
+                    { id: 'low', label: 'Low Stock', val: stats.lowStock, icon: HiOutlineExclamationCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
+                    { id: 'out', label: 'Out of Stock', val: stats.outOfStock, icon: HiOutlineArchiveBox, color: 'text-rose-600', bg: 'bg-rose-50' }
                 ].map((stat, i) => (
-                    <Card key={i} className="border-none shadow-sm ring-1 ring-slate-100 p-4 relative overflow-hidden group">
+                    <Card 
+                        key={i} 
+                        className={cn(
+                            "border-none shadow-sm ring-1 p-4 relative overflow-hidden group cursor-pointer transition-all",
+                            (stat.id === 'low' || stat.id === 'out') && filterStockStatus === stat.id ? "ring-2 ring-primary/50 shadow-md bg-slate-50" : "ring-slate-100"
+                        )}
+                        onClick={() => {
+                            if (stat.id === 'low' || stat.id === 'out') {
+                                setFilterStockStatus(prev => prev === stat.id ? 'all' : stat.id);
+                            }
+                        }}
+                    >
                         <div className="flex items-center gap-3">
                             <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300", stat.bg, stat.color)}>
                                 <stat.icon className="h-5 w-5" />
@@ -457,7 +485,7 @@ const ProductManagement = () => {
                             }}
                             className={cn(
                                 "flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
-                                filterStatus === 'active' ? "bg-brand-500 text-primary-foreground shadow-md shadow-brand-100" :
+                                filterStatus === 'active' ? "bg-emerald-500 text-white shadow-md shadow-emerald-100" :
                                     filterStatus === 'inactive' ? "bg-amber-500 text-white shadow-md shadow-amber-100" :
                                         "bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
                             )}
@@ -606,7 +634,7 @@ const ProductManagement = () => {
                                     {/* Status Column */}
                                     <td className="px-4 py-5 text-center align-middle whitespace-nowrap">
                                         <div className="flex flex-col items-center gap-1">
-                                            <StatusBadge status={p.status} stock={p.stock} />
+                                            <StatusBadge status={p.status} stock={getEffectiveStock(p)} />
                                             <ApprovalBadge approvalStatus={p.approvalStatus} />
                                         </div>
                                     </td>
@@ -614,22 +642,26 @@ const ProductManagement = () => {
                                     {/* Actions Column */}
                                     <td className="px-4 py-5 text-center align-middle">
                                         <div className="flex items-center justify-center gap-2">
-                                            <button
-                                                onClick={() => handleModerationAction(p, 'approve')}
-                                                disabled={moderatingActionId === `approve:${p._id}`}
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
-                                                title="Approve product"
-                                            >
-                                                <HiOutlineCheckCircle className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleModerationAction(p, 'reject')}
-                                                disabled={moderatingActionId === `reject:${p._id}`}
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-amber-50 hover:text-amber-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
-                                                title="Reject product"
-                                            >
-                                                <HiOutlineXMark className="h-4 w-4" />
-                                            </button>
+                                            {String(p.approvalStatus || '').toLowerCase() !== 'approved' && (
+                                                <button
+                                                    onClick={() => handleModerationAction(p, 'approve')}
+                                                    disabled={moderatingActionId === `approve:${p._id}`}
+                                                    className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
+                                                    title="Approve product"
+                                                >
+                                                    <HiOutlineCheckCircle className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                            {String(p.approvalStatus || '').toLowerCase() !== 'rejected' && (
+                                                <button
+                                                    onClick={() => handleModerationAction(p, 'reject')}
+                                                    disabled={moderatingActionId === `reject:${p._id}`}
+                                                    className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-amber-50 hover:text-amber-600 rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100 disabled:opacity-60"
+                                                    title="Reject product"
+                                                >
+                                                    <HiOutlineXMark className="h-4 w-4" />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => openModal(p)}
                                                 className="flex h-9 w-9 shrink-0 items-center justify-center hover:bg-white hover:text-primary rounded-xl transition-all text-slate-400 shadow-sm ring-1 ring-slate-100"

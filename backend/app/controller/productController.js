@@ -4,6 +4,14 @@ import Review from "../models/review.js";
 import { handleResponse } from "../utils/helper.js";
 import { slugify } from "../utils/slugify.js";
 import getPagination from "../utils/pagination.js";
+import Admin from "../models/admin.js";
+import { emitNotificationEvent } from "../modules/notifications/notification.emitter.js";
+import { NOTIFICATION_EVENTS } from "../modules/notifications/notification.constants.js";
+
+async function getAdminIds() {
+    const admins = await Admin.find().select("_id").lean();
+    return (admins || []).map((a) => a?._id).filter(Boolean);
+}
 import {
   parseCustomerCoordinates,
   getNearbySellerIdsForCustomer,
@@ -696,6 +704,7 @@ export const createProduct = async (req, res) => {
     let moderationUpdate = {};
     let successMessage = "Product created successfully";
 
+    let isPendingApproval = false;
     if (role === "admin") {
       moderationUpdate = buildAdminApprovedModerationUpdate(req.user?.id || null);
     } else {
@@ -703,6 +712,7 @@ export const createProduct = async (req, res) => {
       if (approvalConfig.sellerCreateRequiresApproval) {
         moderationUpdate = buildSellerPendingModerationUpdate();
         successMessage = "Product submitted for admin approval";
+        isPendingApproval = true;
       } else {
         moderationUpdate = buildSellerApprovedModerationUpdate();
       }
@@ -710,6 +720,21 @@ export const createProduct = async (req, res) => {
     Object.assign(productData, moderationUpdate);
 
     const product = await Product.create(productData);
+    
+    if (isPendingApproval && product && product._id) {
+      try {
+        const adminIds = await getAdminIds();
+        emitNotificationEvent(NOTIFICATION_EVENTS.PRODUCT_MODERATION_REQUEST, {
+          productId: product._id,
+          productName: product.name,
+          sellerId: req.user.id,
+          adminIds,
+          action: 'create'
+        });
+      } catch (e) {
+        logger.error("Notification emission failed", { error: e });
+      }
+    }
     
     if (product && product._id) {
       // Enqueue search indexing asynchronously
@@ -861,6 +886,7 @@ export const updateProduct = async (req, res) => {
     let moderationUpdate = {};
     let successMessage = "Product updated successfully";
 
+    let isPendingApproval = false;
     if (role === "admin") {
       moderationUpdate = buildAdminApprovedModerationUpdate(req.user?.id || null);
     } else {
@@ -868,6 +894,7 @@ export const updateProduct = async (req, res) => {
       if (approvalConfig.sellerEditRequiresApproval) {
         moderationUpdate = buildSellerPendingModerationUpdate();
         successMessage = "Product changes submitted for admin approval";
+        isPendingApproval = true;
       } else {
         moderationUpdate = buildSellerApprovedModerationUpdate();
       }
@@ -880,6 +907,21 @@ export const updateProduct = async (req, res) => {
       { new: true, runValidators: true },
     );
     
+    if (isPendingApproval && updatedProduct) {
+      try {
+        const adminIds = await getAdminIds();
+        emitNotificationEvent(NOTIFICATION_EVENTS.PRODUCT_MODERATION_REQUEST, {
+          productId: updatedProduct._id,
+          productName: updatedProduct.name,
+          sellerId: req.user.id,
+          adminIds,
+          action: 'update'
+        });
+      } catch (e) {
+        logger.error("Notification emission failed", { error: e });
+      }
+    }
+
     // Enqueue search indexing asynchronously
     await enqueueProductIndex(id);
     await invalidate(`cache:catalog:product:${id}`);
@@ -1107,6 +1149,45 @@ export const getModerationProducts = async (req, res) => {
       }
     }
 
+    const effectiveStockExpr = {
+      $cond: {
+        if: { $gt: [{ $size: { $ifNull: ["$variants", []] } }, 0] },
+        then: {
+          $sum: {
+            $map: {
+              input: "$variants",
+              as: "v",
+              in: { $convert: { input: "$$v.stock", to: "double", onError: 0, onNull: 0 } }
+            }
+          }
+        },
+        else: { $convert: { input: "$stock", to: "double", onError: 0, onNull: 0 } }
+      }
+    };
+
+    const thresholdExpr = {
+      $let: {
+        vars: {
+          rawThreshold: { $convert: { input: "$lowStockAlert", to: "double", onError: 0, onNull: 0 } }
+        },
+        in: { $cond: [{ $gt: ["$$rawThreshold", 0] }, "$$rawThreshold", 10] }
+      }
+    };
+
+    const { stockStatus = "all" } = req.query;
+    if (stockStatus !== "all") {
+      if (stockStatus === "out") {
+        baseQuery.$expr = { $eq: [effectiveStockExpr, 0] };
+      } else if (stockStatus === "low") {
+        baseQuery.$expr = {
+          $and: [
+            { $gt: [effectiveStockExpr, 0] },
+            { $lte: [effectiveStockExpr, thresholdExpr] }
+          ]
+        };
+      }
+    }
+
     let moderatedQuery = { ...baseQuery };
     const approvalFilter = buildApprovalStatusFilter(approvalStatus);
     if (Object.keys(approvalFilter).length > 0) {
@@ -1123,7 +1204,12 @@ export const getModerationProducts = async (req, res) => {
     };
     const sortQuery = sortMap[String(sort || "newest").toLowerCase()] || sortMap.newest;
 
-    const [items, total, allCount, pendingCount, approvedCount, rejectedCount] =
+    // Compute base counts for stats cards, ignoring status/stock filters
+    const baseStatsQuery = { ...baseQuery };
+    delete baseStatsQuery.status;
+    delete baseStatsQuery.$expr;
+
+    const [items, total, allCount, pendingCount, approvedCount, rejectedCount, activeCount, lowStockCount, outOfStockCount] =
       await Promise.all([
         Product.find(moderatedQuery)
           .select(
@@ -1139,21 +1225,32 @@ export const getModerationProducts = async (req, res) => {
           .limit(limit)
           .lean(),
         Product.countDocuments(moderatedQuery),
-        Product.countDocuments(baseQuery),
+        Product.countDocuments(baseStatsQuery),
         Product.countDocuments({
-          ...baseQuery,
+          ...baseStatsQuery,
           approvalStatus: PRODUCT_APPROVAL_STATUS.PENDING,
         }),
         Product.countDocuments({
           $and: [
-            { ...baseQuery },
+            { ...baseStatsQuery },
             buildApprovalStatusFilter(PRODUCT_APPROVAL_STATUS.APPROVED),
           ],
         }),
         Product.countDocuments({
-          ...baseQuery,
+          ...baseStatsQuery,
           approvalStatus: PRODUCT_APPROVAL_STATUS.REJECTED,
         }),
+        Product.countDocuments({ ...baseStatsQuery, status: "active" }),
+        Product.countDocuments({
+          ...baseStatsQuery,
+          $expr: {
+            $and: [
+              { $gt: [effectiveStockExpr, 0] },
+              { $lte: [effectiveStockExpr, thresholdExpr] }
+            ]
+          }
+        }),
+        Product.countDocuments({ ...baseStatsQuery, $expr: { $eq: [effectiveStockExpr, 0] } }),
       ]);
 
     return handleResponse(res, 200, "Moderation products fetched", {
@@ -1167,6 +1264,9 @@ export const getModerationProducts = async (req, res) => {
         pending: pendingCount,
         approved: approvedCount,
         rejected: rejectedCount,
+        active: activeCount,
+        lowStock: lowStockCount,
+        outOfStock: outOfStockCount,
       },
     });
   } catch (error) {
