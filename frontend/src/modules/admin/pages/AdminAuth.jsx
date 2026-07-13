@@ -27,6 +27,12 @@ const AdminAuth = () => {
     const navigate = useNavigate();
 
     React.useEffect(() => {
+        import('@core/auth/activeRoleStore').then(({ setActiveRole, ROLES }) => {
+            setActiveRole(ROLES.ADMIN);
+        });
+    }, []);
+
+    React.useEffect(() => {
         if (isAuthenticated && role === 'admin') {
             navigate('/admin', { replace: true });
         }

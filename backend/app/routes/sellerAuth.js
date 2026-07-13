@@ -42,6 +42,28 @@ router.post(
     verifySellerSignupOtp
 );
 
+// Forgot / Reset Password
+router.post(
+    "/forgot-password/send-otp",
+    authRouteRateLimiter,
+    otpRouteRateLimiter,
+    sellerOtpPayloadGuard,
+    sendSellerResetOtp
+);
+router.post(
+    "/forgot-password/verify-otp",
+    authRouteRateLimiter,
+    otpRouteRateLimiter,
+    sellerOtpPayloadGuard,
+    verifySellerResetOtp
+);
+router.post(
+    "/reset-password",
+    authRouteRateLimiter,
+    sellerOtpPayloadGuard,
+    resetSellerPassword
+);
+
 router.post(
     "/signup",
     upload.any(),

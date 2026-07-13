@@ -378,35 +378,8 @@ const OrderDetailPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!order) {
-      setReturnCountdown(null);
-      return;
-    }
-
-    const calculateCountdown = () => {
-      if (order.status !== "delivered") {
-        setReturnCountdown(null);
-        return;
-      }
-      const windowStart = new Date(order.deliveredAt || order.createdAt).getTime();
-      const now = Date.now();
-      const windowMs = returnWindowMinutes * 60 * 1000;
-      const remaining = Math.max(0, (windowStart + windowMs) - now);
-
-      if (remaining <= 0) {
-        setReturnCountdown(0);
-        return;
-      }
-
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      setReturnCountdown(`${mins}:${secs.toString().padStart(2, "0")}`);
-    };
-
-    calculateCountdown();
-    const iv = setInterval(calculateCountdown, 1000);
-    return () => clearInterval(iv);
-  }, [order, returnWindowMinutes]);
+    // Timer removed
+  }, [order]);
 
   const handleOpenInMaps = () => {
     const loc = order?.address?.location;
@@ -597,10 +570,7 @@ const OrderDetailPage = () => {
       return false;
     }
 
-    const windowStart = new Date(order.deliveredAt || order.createdAt).getTime();
-    const now = Date.now();
-    const windowMs = returnWindowMinutes * 60 * 1000;
-    return now - windowStart <= windowMs;
+    return true;
   };
 
   const toggleItemSelection = (index) => {
@@ -1104,12 +1074,6 @@ const OrderDetailPage = () => {
               <h3 className="text-base font-bold text-slate-800">
                 Return & Refund
               </h3>
-              {canRequestReturn() && returnCountdown !== 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-xs font-bold ring-1 ring-amber-200">
-                  <Clock size={12} />
-                  Ends in {returnCountdown}
-                </div>
-              )}
             </div>
 
             {returnDetails &&
@@ -1163,17 +1127,18 @@ const OrderDetailPage = () => {
                   )}
               </div>
             ) : (
-              <p className="text-sm text-slate-500 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                You can request a return within the first {returnWindowMinutes} minutes after delivery.
-              </p>
-            )}
-
-            {canRequestReturn() && (
-              <button
-                onClick={() => setShowReturnModal(true)}
-                className="w-full py-4 rounded-2xl bg-slate-900 text-white text-sm font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-[0.98]">
-                Request Return
-              </button>
+              canRequestReturn() ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                    You can request a return for this delivered order.
+                  </p>
+                  <button
+                    onClick={() => setShowReturnModal(true)}
+                    className="w-full py-4 rounded-2xl bg-slate-900 text-white text-sm font-bold shadow-lg shadow-slate-900/10 hover:bg-slate-800 transition-all active:scale-[0.98]">
+                    Request Return
+                  </button>
+                </div>
+              ) : null
             )}
           </motion.div>
         )}

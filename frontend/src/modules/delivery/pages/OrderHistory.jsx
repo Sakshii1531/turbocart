@@ -244,7 +244,7 @@ const OrderHistory = () => {
                       </div>
                       <div className="text-left sm:text-right shrink-0">
                         <span className="block font-bold text-lg text-brand-600 whitespace-nowrap">
-                          ₹{Math.round((order.pricing?.total || 0) * 0.1)}
+                          ₹{order.paymentBreakdown?.riderPayoutTotal || order.returnDeliveryCommission || 0}
                         </span>
                         <span className="ds-caption text-gray-400">Earnings</span>
                       </div>
@@ -252,7 +252,7 @@ const OrderHistory = () => {
 
                     <div className="border-t border-b border-gray-50 py-3 my-3 space-y-2">
                       <div className="flex items-start">
-                        <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 mr-2 flex-shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 mr-2 flex-shrink-0 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
                         <div>
                           <p className="ds-caption text-gray-500 mb-0.5">Store</p>
                           <p className="text-sm font-medium text-gray-800 line-clamp-1">
@@ -277,7 +277,7 @@ const OrderHistory = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="flex items-center bg-gray-50 px-2 py-1 rounded border border-gray-100">
                           <MapPin size={12} className="mr-1 text-gray-400" />{" "}
-                          2.4 km {/* Mock for now */}
+                          {order.distanceSnapshot?.distanceKmActual?.toFixed(1) || order.paymentBreakdown?.distanceKmActual?.toFixed(1) || "0.0"} km
                         </span>
                         <span className="flex items-center bg-gray-50 px-2 py-1 rounded border border-gray-100">
                           <Clock size={12} className="mr-1 text-gray-400" /> 15

@@ -22,7 +22,8 @@ export const signupDelivery = async (req, res) => {
             name, phone, vehicleType,
             email, address, vehicleNumber,
             drivingLicenseNumber,
-            accountHolder, accountNumber, ifsc
+            accountHolder, accountNumber, ifsc,
+            dob, bloodGroup
         } = req.body;
 
         if (!name || !phone) {
@@ -83,6 +84,8 @@ export const signupDelivery = async (req, res) => {
             accountHolder,
             accountNumber,
             ifsc,
+            dob,
+            bloodGroup,
             profileImage: profileImageUrl,
             documents: {
                 aadhar: aadharUrl,
@@ -123,8 +126,11 @@ export const loginDelivery = async (req, res) => {
 
         const delivery = await Delivery.findOne({ phone });
 
-        if (!delivery || !delivery.isVerified) {
+        if (!delivery) {
             return handleResponse(res, 404, "Delivery partner not found");
+        }
+        if (!delivery.isVerified) {
+            return handleResponse(res, 403, "Your application is still pending admin approval");
         }
 
         let otp = generateOTP();
@@ -168,7 +174,16 @@ export const verifyDeliveryOTP = async (req, res) => {
             return handleResponse(res, 400, "Invalid or expired OTP");
         }
 
-        delivery.isVerified = true;
+        if (!delivery.isVerified) {
+            // New signup OTP verification
+            delivery.otp = undefined;
+            delivery.otpExpiry = undefined;
+            await delivery.save();
+            return handleResponse(res, 200, "Phone verified successfully", {
+                pendingApproval: true
+            });
+        }
+
         delivery.isOnline = true; // Auto-activate delivery boy on login
         delivery.otp = undefined;
         delivery.otpExpiry = undefined;

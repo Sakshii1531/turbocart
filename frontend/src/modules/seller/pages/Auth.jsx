@@ -57,6 +57,13 @@ const Auth = () => {
   const { login } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    import('@core/auth/activeRoleStore').then(({ setActiveRole, ROLES }) => {
+        setActiveRole(ROLES.SELLER);
+    });
+  }, []);
+
   const appName = settings?.appName || "App";
   const logoUrl = settings?.logoUrl || "";
   const [verifications, setVerifications] = useState({

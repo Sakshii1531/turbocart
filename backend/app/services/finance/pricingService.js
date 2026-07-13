@@ -384,6 +384,7 @@ export async function generateOrderPaymentBreakdown({
   items = [],
   preHydratedItems = null,
   distanceKm = 0,
+  distanceSource = "haversine",
   discountTotal = 0,
   taxTotal = 0,
   tipTotal = 0,
@@ -511,6 +512,7 @@ export async function generateOrderPaymentBreakdown({
   const snapshots = {
     deliverySettings: {
       ...effectiveSettings,
+      distanceSource,
     },
     categoryCommissionSettings: categories.map((category) => ({
       headerCategoryId: String(category._id),
