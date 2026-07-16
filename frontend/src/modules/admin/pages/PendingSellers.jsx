@@ -65,6 +65,20 @@ const PendingSellers = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        if (isReviewModalOpen) {
+            document.body.style.overflow = 'hidden';
+            window.lenis?.stop();
+        } else {
+            document.body.style.overflow = '';
+            window.lenis?.start();
+        }
+        return () => {
+            document.body.style.overflow = '';
+            window.lenis?.start();
+        };
+    }, [isReviewModalOpen]);
+
     const stats = useMemo(() => ({
         total: summaryStats.totalApplications,
         today: summaryStats.receivedToday,
@@ -289,7 +303,7 @@ const PendingSellers = () => {
             {/* Review Modal */}
             <AnimatePresence>
                 {isReviewModalOpen && viewingSeller && (
-                    <div className="fixed inset-0 z-[100] overflow-y-auto">
+                    <div className="fixed inset-0 z-[100] overflow-y-auto" data-lenis-prevent>
                         <div className="min-h-full flex items-center justify-center p-4 lg:p-4">
                             <motion.div
                                 initial={{ opacity: 0 }}
