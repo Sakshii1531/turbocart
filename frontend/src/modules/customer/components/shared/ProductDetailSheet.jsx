@@ -333,6 +333,8 @@ const ProductDetailSheet = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={closeProduct}
+                        onWheel={(e) => e.stopPropagation()}
+                        onTouchMove={(e) => e.stopPropagation()}
                         className="fixed inset-0 bg-black/60 z-[220] backdrop-blur-sm"
                     />
 
@@ -344,7 +346,9 @@ const ProductDetailSheet = () => {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 30 }}
                         transition={{ type: 'spring', damping: 28, stiffness: 380 }}
-                        className="hidden md:flex fixed z-[230] top-[72px] bottom-[16px] left-[3%] right-[3%] lg:left-[6%] lg:right-[6%] xl:left-[12%] xl:right-[12%] bg-white rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] overflow-hidden"
+                        onWheel={(e) => e.stopPropagation()}
+                        onTouchMove={(e) => e.stopPropagation()}
+                        className="hidden md:flex fixed z-[230] top-[72px] bottom-[16px] left-[3%] right-[3%] lg:left-[6%] lg:right-[6%] xl:left-[12%] xl:right-[12%] bg-white rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.25)] overflow-hidden overscroll-contain"
                     >
                         {/* Parent flex container that holds both sides together so the whole modal scrolls */}
                         <div className="flex w-full min-h-full">
@@ -448,7 +452,7 @@ const ProductDetailSheet = () => {
                                 </div>
 
                                 {/* Right: Product Info (scrollable naturally) */}
-                                <div className="flex-1 flex flex-col bg-white">
+                                <div className="flex-1 flex flex-col bg-white overflow-y-auto overscroll-contain custom-scrollbar">
                                     <div className="flex-1 px-7 py-6 lg:px-8 lg:py-7 space-y-3">
 
                                         {/* Top badges row */}
@@ -611,31 +615,6 @@ const ProductDetailSheet = () => {
                                             <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
                                             <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-white border border-gray-200 rounded-full" />
                                         </div>
-
-                                        {/* Variants Selection (Desktop) */}
-                                        {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                                            <div className="bg-slate-50/50 rounded-2xl p-4 border border-slate-100/50 mt-4">
-                                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Select Variant</h4>
-                                                <div className="flex gap-2.5 flex-wrap">
-                                                    {selectedProduct.variants.map((v, idx) => (
-                                                        <motion.button
-                                                            key={idx}
-                                                            whileHover={{ scale: 1.02 }}
-                                                            whileTap={{ scale: 0.98 }}
-                                                            onClick={() => setSelectedVariant(v)}
-                                                            className={cn(
-                                                                'px-4 py-2 font-black rounded-xl text-xs transition-all border-2',
-                                                                selectedVariant?.sku === v.sku
-                                                                    ? 'bg-white border-primary text-primary shadow-sm shadow-brand-100'
-                                                                    : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
-                                                            )}
-                                                        >
-                                                            {v.name}
-                                                        </motion.button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* Product Information Accordion (Desktop) */}
                                         <div className="mt-8 border-t border-slate-100">

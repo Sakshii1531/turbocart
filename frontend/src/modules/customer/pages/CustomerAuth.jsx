@@ -275,7 +275,7 @@ const CustomerAuth = () => {
                                                 src={logoUrl}
                                                 alt={`${appName} logo`}
                                                 loading="lazy"
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-contain p-3"
                                             />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: activeCategory.color }}>

@@ -85,8 +85,8 @@ const ExperienceBannerCarousel = ({ section, items, fullWidth = false, slideGap 
           <div
             key={idx}
             className={cn(
-              "relative shrink-0 overflow-hidden bg-slate-100 flex items-center justify-center box-border",
-              fullWidth ? "aspect-[2/1] sm:aspect-[21/9] rounded-none px-0" : "aspect-[2/1] sm:aspect-[21/9] px-4 md:px-8 py-2"
+              "relative shrink-0 overflow-hidden flex items-center justify-center box-border",
+              fullWidth ? "aspect-[2/1] sm:aspect-[21/9] bg-slate-100 rounded-none px-0" : "px-4 md:px-8 py-2"
             )}
             style={{ width: `${100 / totalItems}%` }}
           >
@@ -110,7 +110,7 @@ const ExperienceBannerCarousel = ({ section, items, fullWidth = false, slideGap 
                 decoding="async"
               />
             ) : (
-              <div className="h-full w-full max-w-[560px] overflow-hidden rounded-3xl bg-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
+              <div className="w-full max-w-[560px] aspect-[2/1] sm:aspect-[21/9] overflow-hidden rounded-3xl bg-slate-100 shadow-[0_12px_30px_rgba(15,23,42,0.08)]">
                 <img
                   src={getBannerOptimizedSrc(banner.imageUrl)}
                   srcSet={
