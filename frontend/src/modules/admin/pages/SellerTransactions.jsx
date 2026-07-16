@@ -633,8 +633,10 @@ const SellerTransactions = () => {
                                                 if (err.name !== 'AbortError') console.error('Share failed:', err);
                                             }
                                         } else {
-                                            navigator.clipboard.writeText(shareData.text);
-                                            toast.success('Transaction details copied to clipboard!');
+                                            if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
+                                                navigator.clipboard.writeText(shareData.text);
+                                                toast.success('Transaction details copied to clipboard!');
+                                            }
                                         }
                                     }}
                                     className="p-4 bg-slate-100 text-slate-900 rounded-2xl flex items-center justify-center hover:bg-slate-200 transition-all"

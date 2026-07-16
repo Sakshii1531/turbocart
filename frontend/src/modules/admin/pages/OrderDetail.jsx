@@ -86,8 +86,10 @@ const OrderDetail = () => {
 
     const copyToClipboard = (text, label) => {
         if (!text) return;
-        navigator.clipboard.writeText(text);
-        showToast(`${label} copied to internal clipboard`, 'success');
+        if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
+            navigator.clipboard.writeText(text);
+            showToast(`${label} copied to internal clipboard`, 'success');
+        }
     };
 
     const handlePrintInvoice = async () => {

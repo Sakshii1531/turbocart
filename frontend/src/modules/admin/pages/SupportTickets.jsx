@@ -248,6 +248,7 @@ const SupportTickets = () => {
     }, [token, selectedTicket?.id]);
 
     const copyToClipboard = async (text) => {
+        if (typeof window === 'undefined') return;
         const value = String(text || '').trim();
         if (!value) return;
 

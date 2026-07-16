@@ -566,8 +566,10 @@ const CheckoutPage = () => {
         console.log("Error sharing:", err);
       }
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      showToast("Link copied to clipboard!", "success");
+      if (typeof window !== 'undefined' && navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(window.location.href);
+        showToast("Link copied to clipboard!", "success");
+      }
     }
   };
 
