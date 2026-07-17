@@ -222,9 +222,9 @@ export const LocationProvider = ({ children }) => {
 
       // Native Flutter Bridge
       if (window.Flutter) {
-        import("../../../lib/appZetoBridge").then(async (m) => {
-          const AppZetoBridge = m.default;
-          const coords = await AppZetoBridge.getLocation();
+        import("../../../lib/turboCartBridge").then(async (m) => {
+          const TurboCartBridge = m.default;
+          const coords = await TurboCartBridge.getLocation();
           if (coords && coords.lat && coords.lng) {
             handleLocationSuccess(coords.lat, coords.lng);
           } else {

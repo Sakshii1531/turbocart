@@ -1,11 +1,11 @@
 /**
- * AppZeto JS Bridge Helper
+ * TurboCart JS Bridge Helper
  * This script should be included in your React application (MERN frontend).
  * It enables bidirectional communication between the React web app and the
  * Flutter native wrapper via the WebView JavaScript channel.
  */
 
-const AppZetoBridge = {
+const TurboCartBridge = {
   /**
    * Check if the app is running inside the Flutter WebView
    * @returns {boolean}
@@ -115,7 +115,7 @@ const MyComponent = () => {
   const [image, setImage] = useState(null);
 
   useEffect(() => {
-    AppZetoBridge.onResponse((res) => {
+    TurboCartBridge.onResponse((res) => {
       if (res.type === 'camera_response' && res.data) {
         setImage(`data:image/jpeg;base64,${res.data}`);
       }
@@ -130,11 +130,11 @@ const MyComponent = () => {
   }, []);
 
   const handleCapture = () => {
-    AppZetoBridge.send("open_camera");
+    TurboCartBridge.send("open_camera");
   };
 
   const handleGetLocation = () => {
-    AppZetoBridge.send("get_location");
+    TurboCartBridge.send("get_location");
   };
 
   return (
@@ -147,4 +147,4 @@ const MyComponent = () => {
 };
 */
 
-export default AppZetoBridge;
+export default TurboCartBridge;

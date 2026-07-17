@@ -1,7 +1,7 @@
 import { isSupported, getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getFirebaseApp } from "./client";
 import axiosInstance from "@core/api/axios";
-import AppZetoBridge from "../../lib/appZetoBridge";
+import TurboCartBridge from "../../lib/turboCartBridge";
 import { rawGet, rawSet, rawRemove, KEY_PREFIXES } from "@core/utils/storage";
 
 let foregroundListenerStarted = false;
@@ -164,7 +164,7 @@ export async function ensureFcmTokenRegistered({
 
   if (window.Flutter) {
     // Get token from Flutter native layer
-    token = await AppZetoBridge.getFcmToken();
+    token = await TurboCartBridge.getFcmToken();
     if (!token) {
       throw new Error("Failed to obtain native FCM token from Flutter");
     }
