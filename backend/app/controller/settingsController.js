@@ -1,5 +1,6 @@
 import Joi from "joi";
 import Setting from "../models/setting.js";
+import Seller from "../models/seller.js";
 import handleResponse from "../utils/helper.js";
 import { buildKey, getOrSet, getTTL, invalidate } from "../services/cacheService.js";
 import { uploadToCloudinary } from "../services/mediaService.js";
@@ -263,6 +264,46 @@ export const uploadSettingsImage = async (req, res) => {
 
     await invalidate("cache:platform:settings:*");
     return handleResponse(res, 200, "Image URL accepted", { url: providedUrl, type });
+  } catch (error) {
+    return handleResponse(res, 500, error.message);
+  }
+};
+
+/**
+ * GET /api/settings/check-serviceability?pincode=XXXXXX
+ * Public endpoint to check if delivery is available for a PIN-code.
+ */
+export const checkPincodeServiceability = async (req, res) => {
+  try {
+    const { pincode } = req.query;
+    if (!pincode) {
+      return handleResponse(res, 400, "PIN-code is required");
+    }
+
+    const cleanPincode = String(pincode).trim();
+    if (!/^\d{6}$/.test(cleanPincode)) {
+      return handleResponse(res, 400, "PIN-code must be exactly 6 numeric digits");
+    }
+
+    // Find if there is any active, verified, and approved seller with this pincode
+    const seller = await Seller.findOne({
+      isActive: true,
+      isVerified: true,
+      applicationStatus: "approved",
+      pincode: cleanPincode,
+    }).select("shopName");
+
+    if (seller) {
+      return handleResponse(res, 200, "Serviceable", {
+        serviceable: true,
+        message: `Great! Delivery is available in your area.`,
+      });
+    } else {
+      return handleResponse(res, 200, "Not Serviceable", {
+        serviceable: false,
+        message: "Sorry, delivery is not available in this area yet.",
+      });
+    }
   } catch (error) {
     return handleResponse(res, 500, error.message);
   }

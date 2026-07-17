@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useInViewAnimation } from "@/core/hooks/useInViewAnimation";
-import { Sparkles, Heart, Snowflake, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, Heart, Snowflake, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 // MUI Icons (shared with admin & icon selector)
 import HomeIcon from "@mui/icons-material/Home";
@@ -210,6 +210,52 @@ const Home = () => {
   const [offerSections, setOfferSections] = useState(() => cachedHomePageData?.offerSections || []);
   const [noServiceData, setNoServiceData] = useState(null);
 
+  const [pincode, setPincode] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [serviceabilityResult, setServiceabilityResult] = useState(null);
+  const [validationError, setValidationError] = useState("");
+
+  const handlePincodeChange = (val) => {
+    const numericVal = val.replace(/\D/g, "").slice(0, 6);
+    setPincode(numericVal);
+    if (numericVal.length === 0) {
+      setValidationError("");
+    } else if (numericVal.length < 6) {
+      setValidationError("PIN-code must be exactly 6 digits");
+    } else {
+      setValidationError("");
+    }
+  };
+
+  const handleCheckPincode = async (e) => {
+    if (e) e.preventDefault();
+    if (pincode.length !== 6) {
+      setValidationError("PIN-code must be exactly 6 digits");
+      return;
+    }
+    setChecking(true);
+    setValidationError("");
+    setServiceabilityResult(null);
+    try {
+      const res = await customerApi.checkPincodeServiceability(pincode);
+      if (res.data?.success && res.data?.result) {
+        setServiceabilityResult(res.data.result);
+      } else {
+        setServiceabilityResult({
+          serviceable: false,
+          message: res.data?.message || "PIN-code check failed."
+        });
+      }
+    } catch (err) {
+      setServiceabilityResult({
+        serviceable: false,
+        message: err?.response?.data?.message || "Something went wrong while checking serviceability."
+      });
+    } finally {
+      setChecking(false);
+    }
+  };
+
   useEffect(() => {
     productsRef.current = products || [];
   }, [products]);
@@ -405,9 +451,68 @@ const Home = () => {
   };
 
   return (
-    <div className={`min-h-screen pt-[190px] md:pt-[250px] ${products.length === 0 && !isLoading ? "bg-white" : "bg-[#F5F7F8]"}`}>
+    <div className={`min-h-screen pt-[215px] md:pt-[195px] ${products.length === 0 && !isLoading ? "bg-white" : "bg-[#F5F7F8]"}`}>
       <div className={cn("contents", isProductDetailOpen && "hidden md:contents")}>
         <MainLocationHeader categories={categories} activeCategory={activeCategory} onCategorySelect={setActiveCategory} />
+      </div>
+
+      {/* Pincode Serviceability Check Widget */}
+      <div className="container mx-auto px-4 md:px-8 lg:px-[50px] mt-4 mb-4">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 border-2 border-slate-200 shadow-md max-w-2xl mx-auto transition-all hover:shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-brand-50 flex items-center justify-center text-primary shrink-0">
+                <MapPin className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest leading-tight">Delivery Check</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:block">Check if delivery is available in your area</p>
+              </div>
+            </div>
+            
+            <form onSubmit={handleCheckPincode} className="flex-1 max-w-sm flex gap-2 items-start w-full">
+              <div className="flex-1 flex flex-col gap-1 w-full">
+                <input 
+                  type="text" 
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  placeholder="Enter 6-digit PIN-code" 
+                  value={pincode}
+                  onChange={(e) => handlePincodeChange(e.target.value)}
+                  className={cn(
+                    "w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 transition-all placeholder-slate-400/80",
+                    validationError ? "border-red-300 focus:ring-red-500/10" : "border-slate-200 focus:ring-brand-500/10"
+                  )}
+                />
+                {validationError && (
+                  <span className="text-[9px] text-red-500 font-extrabold ml-1 leading-none">{validationError}</span>
+                )}
+              </div>
+              <button 
+                type="submit"
+                disabled={checking || pincode.length !== 6}
+                className="px-5 py-2.5 bg-primary text-white font-black rounded-xl text-[10px] uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none hover:bg-primary/90 shadow-sm shrink-0"
+              >
+                {checking ? "..." : "Check"}
+              </button>
+            </form>
+          </div>
+          {serviceabilityResult && (
+            <div className={cn(
+              "mt-3 p-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 border transition-all animate-in fade-in slide-in-from-top-1",
+              serviceabilityResult.serviceable 
+                ? "bg-green-50/50 text-green-700 border-green-100/50" 
+                : "bg-red-50/50 text-red-700 border-red-100/50"
+            )}>
+              <div className={cn(
+                "h-1.5 w-1.5 rounded-full flex-shrink-0", 
+                serviceabilityResult.serviceable ? "bg-green-500 animate-pulse" : "bg-red-500"
+              )} />
+              <span>{serviceabilityResult.message}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {products.length === 0 && !isLoading ? (

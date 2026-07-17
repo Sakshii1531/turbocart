@@ -319,7 +319,7 @@ const DeliveryAuth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F4FF] flex flex-col items-center justify-center p-5 font-['Outfit',_sans-serif]">
+    <div className="min-h-screen bg-[#F0F4FF] flex flex-col items-center justify-center p-5 font-['Outfit',_sans-serif]" data-lenis-prevent>
       {/* Background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 bg-brand-200/40 rounded-full blur-3xl" />
@@ -398,7 +398,7 @@ const DeliveryAuth = () => {
           )}
 
           {/* Form Body */}
-          <div className="p-6 pt-4 overflow-y-auto custom-scrollbar">
+          <div className="p-6 pt-4 overflow-y-auto custom-scrollbar" data-lenis-prevent>
             <AnimatePresence mode="wait">
               {step === "form" && (
                 <motion.div

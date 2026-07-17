@@ -66,6 +66,9 @@ export function getLegacyStatusFromOrder(order) {
       workflowStatus === WORKFLOW_STATUS.DELIVERY_ASSIGNED ||
       workflowStatus === WORKFLOW_STATUS.PICKUP_READY
     ) {
+      if (String(order.status || "").toLowerCase() === "packed") {
+        return "packed";
+      }
       return "confirmed";
     }
 

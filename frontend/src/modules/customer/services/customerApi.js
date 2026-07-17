@@ -152,4 +152,8 @@ export const customerApi = {
   // Notifications
   getNotifications: (params) => axiosInstance.get("/notifications", { params }),
   markNotificationsRead: () => axiosInstance.patch("/notifications/read"),
+
+  // Pincode Serviceability
+  checkPincodeServiceability: (pincode) =>
+    axiosInstance.get("/settings/check-serviceability", { params: { pincode } }),
 };

@@ -1,10 +1,13 @@
 import express from "express";
 import multer from "multer";
-import { getPublicSettings, updateSettings, uploadSettingsImage } from "../controller/settingsController.js";
+import { getPublicSettings, updateSettings, uploadSettingsImage, checkPincodeServiceability } from "../controller/settingsController.js";
 import { verifyToken, allowRoles } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Public: check serviceability by pincode
+router.get("/check-serviceability", checkPincodeServiceability);
 
 // Public: anyone can read settings (frontend, admin pre-fill)
 router.get("/", getPublicSettings);

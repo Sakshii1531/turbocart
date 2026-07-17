@@ -10,7 +10,7 @@ import Payout from "../models/payout.js";
 import OrderOtp from "../models/orderOtp.js";
 import handleResponse from "../utils/helper.js";
 import getPagination from "../utils/pagination.js";
-import { WORKFLOW_STATUS, DEFAULT_SELLER_TIMEOUT_MS } from "../constants/orderWorkflow.js";
+import { WORKFLOW_STATUS, DEFAULT_SELLER_TIMEOUT_MS, workflowFromLegacyStatus } from "../constants/orderWorkflow.js";
 import { ORDER_PAYMENT_STATUS } from "../constants/finance.js";
 import {
   afterPlaceOrderV2,
@@ -43,6 +43,7 @@ import { createFinanceOrderSchema } from "../validation/financeValidation.js";
 import { placeOrderAtomic } from "../services/orderPlacementService.js";
 import { emitNotificationEvent } from "../modules/notifications/notification.emitter.js";
 import { NOTIFICATION_EVENTS } from "../modules/notifications/notification.constants.js";
+import { emitOrderStatusUpdate } from "../services/orderSocketEmitter.js";
 import {
   emitDeliveryBroadcastForSeller,
   retractDeliveryBroadcastForOrder,
@@ -462,6 +463,9 @@ export const updateOrderStatus = async (req, res) => {
     if (status) {
       order.status = status;
       order.orderStatus = status;
+      if (order.workflowVersion >= 2) {
+        order.workflowStatus = workflowFromLegacyStatus(status);
+      }
     }
     if (deliveryBoyId) order.deliveryBoy = deliveryBoyId;
 
@@ -526,6 +530,8 @@ export const updateOrderStatus = async (req, res) => {
         deliveryId: order.deliveryBoy,
       });
 
+      emitOrderStatusUpdate(canonicalOrderId, { workflowStatus: order.workflowStatus, status: order.status }, order.customer);
+
       const refreshed = await Order.findById(order._id);
       return handleResponse(res, 200, "Order status updated", refreshed || order);
     }
@@ -579,6 +585,16 @@ export const updateOrderStatus = async (req, res) => {
         sellerId: order.seller,
         deliveryId: order.deliveryBoy,
       });
+    }
+
+    // Emit real-time socket event so connected clients (customer, delivery, admin)
+    // update their UI immediately without requiring a manual page refresh.
+    if (status) {
+      emitOrderStatusUpdate(
+        canonicalOrderId,
+        { workflowStatus: order.workflowStatus, status: order.status },
+        order.customer,
+      );
     }
 
     return handleResponse(res, 200, "Order status updated", order);

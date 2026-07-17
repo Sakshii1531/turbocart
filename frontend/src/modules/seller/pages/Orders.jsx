@@ -224,13 +224,21 @@ const Orders = () => {
     };
 
     const handleStatusUpdate = async (orderId, newStatus) => {
+        const normalized = newStatus.toLowerCase();
         try {
-            await sellerApi.updateOrderStatus(orderId, { status: newStatus.toLowerCase() });
+            await sellerApi.updateOrderStatus(orderId, { status: normalized });
             showToast(`Order status updated to ${newStatus}`, "success");
-            fetchOrders(page, false); // Refresh orders without resetting page
+            // Optimistically update the local orders list so the UI reflects
+            // the new status immediately — no waiting for a full re-fetch.
+            setOrders((prev) =>
+                prev.map((o) =>
+                    o.id === orderId ? { ...o, status: normalized } : o
+                )
+            );
             if (selectedOrder && selectedOrder.id === orderId) {
-                setSelectedOrder({ ...selectedOrder, status: newStatus });
+                setSelectedOrder({ ...selectedOrder, status: normalized });
             }
+            fetchOrders(page, false); // Sync with server in the background
         } catch (error) {
             console.error("Failed to update status:", error);
             showToast("Failed to update status", "error");
