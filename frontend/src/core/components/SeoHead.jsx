@@ -55,7 +55,6 @@ export default function SeoHead() {
                 linkFavicon = document.createElement('link');
                 linkFavicon.id = 'dynamic-favicon';
                 linkFavicon.rel = 'icon';
-                linkFavicon.type = 'image/x-icon';
                 document.head.appendChild(linkFavicon);
                 metaRefs.current.favicon = linkFavicon;
             } else if (linkFavicon) {
@@ -63,7 +62,21 @@ export default function SeoHead() {
             }
         }
         if (linkFavicon) {
-            linkFavicon.href = faviconUrl || '/vite.svg';
+            const url = faviconUrl || '/vite.svg';
+            linkFavicon.href = url;
+            if (url.endsWith('.svg')) {
+                linkFavicon.type = 'image/svg+xml';
+            } else if (url.endsWith('.png')) {
+                linkFavicon.type = 'image/png';
+            } else if (url.endsWith('.ico')) {
+                linkFavicon.type = 'image/x-icon';
+            } else if (url.endsWith('.gif')) {
+                linkFavicon.type = 'image/gif';
+            } else if (url.endsWith('.jpg') || url.endsWith('.jpeg')) {
+                linkFavicon.type = 'image/jpeg';
+            } else {
+                linkFavicon.removeAttribute('type');
+            }
         }
     }, [settings]);
 
