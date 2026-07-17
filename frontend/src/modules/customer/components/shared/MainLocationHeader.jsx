@@ -14,7 +14,7 @@ import {
   buildSearchBarBackgroundColor,
   shiftHex,
 } from "../../utils/headerTheme";
-import LogoImage from "../../../../assets/Logo.png";
+
 
 // MUI Icons
 import AccessTimeIcon from "@mui/icons-material/AccessTime";

@@ -62,6 +62,8 @@ const AdminSettings = () => {
         aboutUsText: '',
         privacyPolicyText: '',
         termsConditionsText: '',
+        refundPolicyText: '',
+        deliveryPolicyText: '',
         facebook: '',
         twitter: '',
         instagram: '',
@@ -122,8 +124,9 @@ const AdminSettings = () => {
                     productApproval: normalizeProductApprovalConfig(updatedData),
                 }));
             }
-            await refetch({ forceRefresh: true });
-            showToast('Settings updated successfully', 'success');
+            // Sync global context in the background — no await so the page does not re-render/jump.
+            refetch({ forceRefresh: true });
+            showToast('Settings saved successfully', 'success');
         } catch (error) {
             console.error("Failed to update settings", error);
             showToast('Failed to update settings', 'error');
@@ -590,13 +593,35 @@ const AdminSettings = () => {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Terms & Conditions Content</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Terms &amp; Conditions Content</label>
                                     <textarea
                                         rows={6}
                                         value={settings.termsConditionsText || ''}
                                         onChange={(e) => handleInputChange('termsConditionsText', e.target.value)}
                                         className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
                                         placeholder="Enter your custom terms and conditions text..."
+                                    />
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Refund Policy Content</label>
+                                    <textarea
+                                        rows={6}
+                                        value={settings.refundPolicyText || ''}
+                                        onChange={(e) => handleInputChange('refundPolicyText', e.target.value)}
+                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        placeholder="Enter your refund and return policy text..."
+                                    />
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Delivery Policy Content</label>
+                                    <textarea
+                                        rows={6}
+                                        value={settings.deliveryPolicyText || ''}
+                                        onChange={(e) => handleInputChange('deliveryPolicyText', e.target.value)}
+                                        className="w-full px-5 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-brand-500/10 transition-all"
+                                        placeholder="Enter your delivery and shipping policy text..."
                                     />
                                 </div>
 

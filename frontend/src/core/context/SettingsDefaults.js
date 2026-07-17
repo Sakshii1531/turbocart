@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
   aboutUsText: "",
   privacyPolicyText: "",
   termsConditionsText: "",
+  refundPolicyText: "",
+  deliveryPolicyText: "",
   facebook: "",
   twitter: "",
   instagram: "",

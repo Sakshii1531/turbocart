@@ -27,6 +27,8 @@ const ALLOWED_KEYS = [
   "aboutUsText",
   "privacyPolicyText",
   "termsConditionsText",
+  "refundPolicyText",
+  "deliveryPolicyText",
   "facebook",
   "twitter",
   "instagram",
@@ -99,6 +101,8 @@ const updateSettingsSchema = Joi.object({
   aboutUsText: Joi.string().allow(""),
   privacyPolicyText: Joi.string().allow(""),
   termsConditionsText: Joi.string().allow(""),
+  refundPolicyText: Joi.string().allow(""),
+  deliveryPolicyText: Joi.string().allow(""),
   facebook: Joi.string().allow("").max(500),
   twitter: Joi.string().allow("").max(500),
   instagram: Joi.string().allow("").max(500),
@@ -154,7 +158,7 @@ export const getPublicSettings = async (req, res) => {
       async () => {
         const existing = await Setting.findOne(filter)
           .select(
-            "appName supportEmail supportPhone currencySymbol currencyCode timezone logoUrl faviconUrl primaryColor secondaryColor companyName taxId address aboutUsText privacyPolicyText termsConditionsText facebook twitter instagram linkedin youtube playStoreLink appStoreLink metaTitle metaDescription metaKeywords keywords returnDeliveryCommission deliveryPricingMode pricingMode customerBaseDeliveryFee riderBasePayout baseDeliveryCharge baseDistanceCapacityKm incrementalKmSurcharge deliveryPartnerRatePerKm fleetCommissionRatePerKm fixedDeliveryFee handlingFeeStrategy codEnabled onlineEnabled lowStockAlertsEnabled productApproval createdAt",
+            "appName supportEmail supportPhone currencySymbol currencyCode timezone logoUrl faviconUrl primaryColor secondaryColor companyName taxId address aboutUsText privacyPolicyText termsConditionsText refundPolicyText deliveryPolicyText facebook twitter instagram linkedin youtube playStoreLink appStoreLink metaTitle metaDescription metaKeywords keywords returnDeliveryCommission deliveryPricingMode pricingMode customerBaseDeliveryFee riderBasePayout baseDeliveryCharge baseDistanceCapacityKm incrementalKmSurcharge deliveryPartnerRatePerKm fleetCommissionRatePerKm fixedDeliveryFee handlingFeeStrategy codEnabled onlineEnabled lowStockAlertsEnabled productApproval createdAt",
           )
           .lean();
         return existing || null;
