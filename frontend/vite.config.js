@@ -52,9 +52,26 @@ function firebaseMessagingSwPlugin() {
   }
 }
 
+function forceExitAfterBuildPlugin() {
+  let command = 'serve'
+
+  return {
+    name: 'force-exit-after-build',
+    configResolved(config) {
+      command = config.command
+    },
+    closeBundle() {
+      if (command !== 'build') return
+      // Vercel treats a build as hung if the Node process never exits after
+      // output is written; force it closed instead of waiting on a lingering handle.
+      setTimeout(() => process.exit(0), 0)
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), firebaseMessagingSwPlugin()],
+  plugins: [react(), firebaseMessagingSwPlugin(), forceExitAfterBuildPlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
