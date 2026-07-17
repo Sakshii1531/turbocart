@@ -31,18 +31,28 @@ export function resolveApiBaseUrl() {
     parseEnvUrl(import.meta.env.VITE_API_BASE_URL);
 
   const browserHostname = window.location.hostname;
+  let resolvedUrl;
+
   if (!envUrl) {
     const fallbackHost = browserHostname || "localhost";
-    return buildLocalApiUrl(fallbackHost);
+    resolvedUrl = buildLocalApiUrl(fallbackHost);
+  } else {
+    try {
+      const parsed = new URL(envUrl);
+      resolvedUrl = `${normalizeOrigin(parsed.origin)}${ensureApiPath(parsed.pathname)}`;
+    } catch {
+      const fallbackHost = browserHostname || "localhost";
+      resolvedUrl = buildLocalApiUrl(fallbackHost);
+    }
   }
 
-  try {
-    const parsed = new URL(envUrl);
-    return `${normalizeOrigin(parsed.origin)}${ensureApiPath(parsed.pathname)}`;
-  } catch {
-    const fallbackHost = browserHostname || "localhost";
-    return buildLocalApiUrl(fallbackHost);
-  }
+  console.log("[resolveApiBaseUrl] Debug logs:", {
+    "import.meta.env.VITE_API_URL": import.meta.env.VITE_API_URL,
+    "import.meta.env.VITE_API_BASE_URL": import.meta.env.VITE_API_BASE_URL,
+    "resolvedUrl": resolvedUrl
+  });
+
+  return resolvedUrl;
 }
 
 export function resolveSocketBaseUrl() {
