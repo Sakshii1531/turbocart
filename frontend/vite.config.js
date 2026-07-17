@@ -80,9 +80,15 @@ export default defineConfig({
       '@modules': path.resolve(__dirname, './src/modules'),
     },
   },
+  esbuild: {
+    pure: ['console.log'],
+    drop: ['console', 'debugger'],
+  },
   build: {
     minify: 'esbuild',
     sourcemap: false,
+    cssCodeSplit: true,
+    assetsInlineLimit: 4096,
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
