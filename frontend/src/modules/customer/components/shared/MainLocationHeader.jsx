@@ -165,7 +165,7 @@ const MainLocationHeader = ({
   const { isOpen: isProductDetailOpen } = useProductDetail();
   const { settings } = useSettings();
   const appName = settings?.appName || "App";
-  const logoUrl = settings?.logoUrl || LogoImage;
+  const logoUrl = settings?.logoUrl || "";
   const navigate = useNavigate();
 
   // Search Logic
@@ -358,12 +358,21 @@ const MainLocationHeader = ({
                 onClick={() => navigate("/")}
                 className="flex items-center gap-3 cursor-pointer group shrink-0">
                 <div className="group-hover:scale-110 transition-all duration-300 drop-shadow-[0_2px_8px_rgba(255,255,255,0.2)]">
-                  <img
-                    src={logoUrl}
-                    alt={`${appName} Logo`}
-                    loading="lazy"
-                    className="h-10 w-auto object-contain"
-                  />
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt={`${appName} Logo`}
+                      loading="lazy"
+                      className="h-10 w-auto object-contain"
+                    />
+                  ) : (
+                    <span 
+                      className="text-xl md:text-2xl font-black tracking-tight"
+                      style={{ color: headerFontColor }}
+                    >
+                      {appName}
+                    </span>
+                  )}
                 </div>
               </div>
 
