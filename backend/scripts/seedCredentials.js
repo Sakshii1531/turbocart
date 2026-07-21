@@ -6,12 +6,12 @@ import Seller from '../app/models/seller.js';
 dotenv.config();
 
 const admins = [
-    { name: 'Ankit Ahirwar', email: 'ankit@appzeto.com', password: 'Admin!@#123' },
+    { name: 'Ankit Ahirwar', email: 'ankit@turbocart.com', password: 'Admin!@#123' },
     { name: 'Harshvardhan Panchal', email: 'harshvardhanpanc145@gmail.com', password: 'Admin!@#123' }
 ];
 
 const sellers = [
-    { name: 'Harsh', email: 'harsh@appzeto.com', password: 'Admin!@#123', shopName: 'Appzeto Store' }
+    { name: 'Harsh', email: 'harsh@turbocart.com', password: 'Admin!@#123', shopName: 'Turbo Cart Store' }
 ];
 
 async function seed() {

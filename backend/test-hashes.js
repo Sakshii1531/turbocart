@@ -17,7 +17,7 @@ const Seller = mongoose.model('SellerTest', sellerSchema, 'sellers');
 async function main() {
   await mongoose.connect(uri);
   
-  const harsh = await Seller.findOne({ email: "harsh@appzeto.com" }).select("+password");
+  const harsh = await Seller.findOne({ email: "harsh@turbocart.com" }).select("+password");
   console.log("Harsh hash:", harsh ? harsh.password : "Not found");
   
   const aman = await Seller.findOne({ email: "amanjain4691@gmail.com" }).select("+password");

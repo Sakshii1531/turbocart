@@ -5,7 +5,7 @@ import path from 'path';
 
 console.log("Script starting...");
 
-dotenv.config({ path: 'd:/Appzeto/Noyo/backend/.env' });
+dotenv.config({ path: path.resolve('.env') });
 const MONGO_URI = process.env.MONGO_URI;
 console.log("URI found:", MONGO_URI ? "YES" : "NO");
 

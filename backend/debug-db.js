@@ -9,7 +9,7 @@ const Seller = mongoose.model('Seller', sellerSchema);
 
 async function main() {
   await mongoose.connect(uri);
-  const byEmail = await Seller.findOne({ email: "harsh@appzeto.com" });
+  const byEmail = await Seller.findOne({ email: "harsh@turbocart.com" });
   console.log("By Email:", byEmail);
 
   // User probably entered their phone number. Let's see all sellers.
