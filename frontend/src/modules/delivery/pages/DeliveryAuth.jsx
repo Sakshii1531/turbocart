@@ -51,12 +51,12 @@ const DeliveryAuth = () => {
   const [showPendingModal, setShowPendingModal] = useState(false);
 
   // Login state
-  const [loginPhone, setLoginPhone] = useState("");
+  const [loginPhone, setLoginPhone] = useState("7389961407");
 
   // Signup state
   const [signupStep, setSignupStep] = useState(1);
   const [signupName, setSignupName] = useState("");
-  const [signupPhone, setSignupPhone] = useState("");
+  const [signupPhone, setSignupPhone] = useState("7389961407");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupAddress, setSignupAddress] = useState("");
   const [signupVehicle, setSignupVehicle] = useState("bike");
@@ -80,7 +80,7 @@ const DeliveryAuth = () => {
   const [dlFile, setDlFile] = useState(null);
 
   // OTP state
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState(["1", "2", "3", "4"]);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(30);

@@ -66,6 +66,9 @@ export function createRateLimiter({
   const windowSec = Math.ceil(safeWindowMs / 1000);
 
   return async (req, res, next) => {
+    if (process.env.DISABLE_RATE_LIMIT === "true" || (process.env.NODE_ENV !== "production" && process.env.ENABLE_RATE_LIMIT_DEV !== "true")) {
+      return next();
+    }
     try {
       const keyPart = keyGenerator ? keyGenerator(req) : getClientIp(req);
       const bucket = Math.floor(nowMs() / safeWindowMs);

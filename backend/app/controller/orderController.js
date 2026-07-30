@@ -1355,47 +1355,22 @@ export const acceptOrder = async (req, res) => {
       return handleResponse(res, 404, "Order not found");
     }
 
-    if (order.workflowVersion >= 2) {
-      try {
-        const idem = req.headers["idempotency-key"];
-        const { order: updated, duplicate } = await deliveryAcceptAtomic(
-          userId,
-          order.orderId,
-          idem,
-        );
-        return handleResponse(
-          res,
-          200,
-          duplicate ? "Already accepted" : "Order accepted successfully",
-          updated,
-        );
-      } catch (e) {
-        return handleResponse(res, e.statusCode || 500, e.message);
-      }
-    }
-
-    if (order.deliveryBoy) {
+    try {
+      const idem = req.headers["idempotency-key"];
+      const { order: updated, duplicate } = await deliveryAcceptAtomic(
+        userId,
+        order.orderId,
+        idem,
+      );
       return handleResponse(
         res,
-        400,
-        "Order already assigned to another delivery partner",
+        200,
+        duplicate ? "Already accepted" : "Order accepted successfully",
+        updated,
       );
+    } catch (e) {
+      return handleResponse(res, e.statusCode || 500, e.message);
     }
-
-    order.deliveryBoy = userId;
-    if (order.status === "pending") {
-      order.status = "confirmed";
-    }
-
-    await order.save();
-    emitNotificationEvent(NOTIFICATION_EVENTS.DELIVERY_ASSIGNED, {
-      orderId: order.orderId,
-      deliveryId: userId,
-      customerId: order.customer,
-      sellerId: order.seller,
-    });
-
-    return handleResponse(res, 200, "Order accepted successfully", order);
   } catch (error) {
     return handleResponse(res, 500, error.message);
   }

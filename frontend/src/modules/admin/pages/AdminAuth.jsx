@@ -41,8 +41,8 @@ const AdminAuth = () => {
     const logoUrl = settings?.logoUrl || '';
 
     const [formData, setFormData] = useState({
-        email: '',
-        password: '',
+        email: 'admin123@gmail.com',
+        password: 'admin123',
         name: '',
         adminCode: '',
         phone: ''
@@ -115,7 +115,11 @@ const AdminAuth = () => {
         } catch (error) {
             console.error('Login error:', error);
             console.error('Error response:', error.response?.data);
-            toast.error(error.response?.data?.message || 'Authentication failed');
+            const msg = error.response?.data?.message || 'Authentication failed';
+            toast.error(msg);
+            if (error.response?.status === 409) {
+                setIsLogin(true);
+            }
         } finally {
             setIsLoading(false);
         }

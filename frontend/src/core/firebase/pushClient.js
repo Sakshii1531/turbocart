@@ -194,14 +194,21 @@ export async function ensureFcmTokenRegistered({
     }
   }
 
-  await axiosInstance.post("/push/register", {
-    token,
-    platform,
-    device: device || navigator.userAgent,
-  });
-
-  persistStoredFcmToken(role, token);
-  return token;
+  try {
+    await axiosInstance.post("/push/register", {
+      token,
+      platform,
+      device: device || navigator.userAgent,
+    });
+    persistStoredFcmToken(role, token);
+    return token;
+  } catch (error) {
+    if (error.response?.status === 401 || error.response?.status === 404) {
+      console.warn("[push] FCM registration skipped due to invalid token/user:", error?.message || error);
+      return null;
+    }
+    throw error;
+  }
 }
 
 export function scheduleFcmRegistrationOnUserGesture({

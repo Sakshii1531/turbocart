@@ -311,10 +311,7 @@ export async function deliveryAcceptAtomic(deliveryId, orderId, idempotencyKey) 
   const updated = await Order.findOneAndUpdate(
     {
       orderId,
-      workflowVersion: { $gte: 2 },
-      workflowStatus: WORKFLOW_STATUS.DELIVERY_SEARCH,
       deliveryBoy: null,
-      deliverySearchExpiresAt: { $gt: now },
       skippedBy: { $nin: [deliveryOid] },
     },
     {
@@ -337,21 +334,20 @@ export async function deliveryAcceptAtomic(deliveryId, orderId, idempotencyKey) 
       err.statusCode = 404;
       throw err;
     }
-    let msg = "Order already assigned or not available";
-    if (o.deliverySearchExpiresAt && new Date(o.deliverySearchExpiresAt) <= now) {
-      msg =
-        "Accept window has expired. Wait for the next delivery request.";
-    } else if (o.deliveryBoy) {
-      msg = "Another rider already accepted this order.";
-    } else if (
-      (o.skippedBy || []).some((id) => id.toString() === deliveryOid.toString())
-    ) {
-      msg =
-        "You rejected this order earlier, so it cannot be accepted now.";
-    } else if (o.workflowStatus !== WORKFLOW_STATUS.DELIVERY_SEARCH) {
-      msg = "This order is no longer open for delivery.";
+    if (o.deliveryBoy) {
+      if (String(o.deliveryBoy) === String(deliveryOid)) {
+        return { order: o, duplicate: true };
+      }
+      const err = new Error("Another rider already accepted this order.");
+      err.statusCode = 409;
+      throw err;
     }
-    const err = new Error(msg);
+    if ((o.skippedBy || []).some((id) => id.toString() === deliveryOid.toString())) {
+      const err = new Error("You rejected this order earlier, so it cannot be accepted now.");
+      err.statusCode = 409;
+      throw err;
+    }
+    const err = new Error("Order already assigned or not available");
     err.statusCode = 409;
     throw err;
   }

@@ -133,7 +133,15 @@ export const AuthProvider = ({ children }) => {
                     setUser(response.data.result);
                 } catch (error) {
                     console.error('Failed to fetch profile:', error);
-                    // Preserve stored tokens on request failures; only manual logout clears auth storage.
+                    if (error.response?.status === 401 || error.response?.status === 404) {
+                        const storageKey = ROLE_STORAGE_KEYS[currentRole];
+                        if (storageKey) rawRemove(storageKey);
+                        if (token && rawGet(LEGACY_TOKEN_KEY) === token) {
+                            rawRemove(LEGACY_TOKEN_KEY);
+                        }
+                        clearOnLogout({ role: currentRole });
+                        setAuthData(prev => ({ ...prev, [currentRole]: null }));
+                    }
                     setUser(null);
                 } finally {
                     setIsLoading(false);

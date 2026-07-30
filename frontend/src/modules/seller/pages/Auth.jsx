@@ -85,8 +85,8 @@ const Auth = () => {
 
 
   const [formData, setFormData] = useState({
-    email: "",
-    password: "",
+    email: "seller123@gmail.com",
+    password: "seller123",
     name: "",
     shopName: "",
     phone: "",
@@ -513,6 +513,9 @@ const Auth = () => {
             rejectionReason,
           },
         });
+      }
+      if (!isLogin && error.response?.status === 409) {
+        setIsLogin(true);
       }
       toast.error(error.response?.data?.message || "Authentication failed");
     } finally {

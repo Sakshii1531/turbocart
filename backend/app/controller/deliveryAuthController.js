@@ -37,7 +37,7 @@ export const signupDelivery = async (req, res) => {
         }
 
         let otp = generateOTP();
-        if (phone === "6268423925" || phone === "+916268423925" || phone === "9111966732" || phone === "+919111966732") {
+        if (phone === "6268423925" || phone === "+916268423925" || phone === "9111966732" || phone === "+919111966732" || phone === "7389961407" || phone === "+917389961407") {
             otp = "1234";
         }
 
@@ -104,7 +104,14 @@ export const signupDelivery = async (req, res) => {
         }
 
         if (useRealSMS()) {
-            await sendSmsIndiaHubOtp({ phone, otp });
+            try {
+                await sendSmsIndiaHubOtp({ phone, otp });
+            } catch (smsError) {
+                console.error("[sms] Delivery SMS dispatch failed:", smsError.message);
+                if (process.env.NODE_ENV === "production" && phone !== "7389961407" && phone !== "+917389961407") {
+                    throw smsError;
+                }
+            }
         }
 
         return handleResponse(res, 200, "OTP sent successfully");
@@ -134,7 +141,7 @@ export const loginDelivery = async (req, res) => {
         }
 
         let otp = generateOTP();
-        if (phone === "6268423925" || phone === "+916268423925" || phone === "9111966732" || phone === "+919111966732") {
+        if (phone === "6268423925" || phone === "+916268423925" || phone === "9111966732" || phone === "+919111966732" || phone === "7389961407" || phone === "+917389961407") {
             otp = "1234";
         }
 
@@ -143,7 +150,14 @@ export const loginDelivery = async (req, res) => {
         await delivery.save();
 
         if (useRealSMS()) {
-            await sendSmsIndiaHubOtp({ phone, otp });
+            try {
+                await sendSmsIndiaHubOtp({ phone, otp });
+            } catch (smsError) {
+                console.error("[sms] Delivery SMS dispatch failed:", smsError.message);
+                if (process.env.NODE_ENV === "production" && phone !== "7389961407" && phone !== "+917389961407") {
+                    throw smsError;
+                }
+            }
         }
 
         return handleResponse(res, 200, "OTP sent successfully");

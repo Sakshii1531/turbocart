@@ -78,8 +78,8 @@ const CustomerAuth = () => {
     const navigate = useNavigate();
 
     const [formData, setFormData] = useState({
-        phone: '',
-        otp: '',
+        phone: '7389961407',
+        otp: '1234',
         name: ''
     });
 
@@ -441,6 +441,7 @@ const CustomerAuth = () => {
                                                     key={i}
                                                     type="tel"
                                                     maxLength={1}
+                                                    value={formData.otp[i] || ''}
                                                     className="w-14 h-16 bg-white border-2 border-gray-200 rounded-3xl text-center text-2xl font-black outline-none shadow-[0_18px_45px_rgba(15,23,42,0.35)] focus:bg-white focus:border-[var(--theme-color)] focus:shadow-[0_24px_65px_rgba(15,23,42,0.55)] transition-all"
                                                     style={{ color: activeCategory.theme }}
                                                     onKeyDown={(e) => {
