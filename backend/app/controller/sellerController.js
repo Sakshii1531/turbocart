@@ -165,9 +165,15 @@ export const updateSellerProfile = async (req, res) => {
     if (name) seller.name = name;
     if (shopName) seller.shopName = shopName;
     if (phone) seller.phone = phone;
-    if (address !== undefined) seller.address = address;
+    if (address !== undefined) {
+      seller.address = address;
+      if (!pincode && typeof address === "string") {
+        const extracted = address.match(/\b\d{6}\b/)?.[0];
+        if (extracted) seller.pincode = extracted;
+      }
+    }
     if (locality !== undefined) seller.locality = locality;
-    if (pincode !== undefined) seller.pincode = pincode;
+    if (pincode !== undefined && pincode) seller.pincode = pincode;
     if (city !== undefined) seller.city = city;
     if (state !== undefined) seller.state = state;
 

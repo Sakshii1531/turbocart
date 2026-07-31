@@ -46,6 +46,7 @@ const SellerProfile = () => {
       const response = await sellerApi.getProfile();
       const data = response.data.result;
       setProfile(data);
+      const extractedPincode = data.pincode || data.address?.match(/\b\d{6}\b/)?.[0] || "";
       setFormData({
         name: data.name,
         shopName: data.shopName,
@@ -55,6 +56,7 @@ const SellerProfile = () => {
         lng: data.location?.coordinates[0] || null,
         radius: data.serviceRadius || 5,
         address: data.address || "",
+        pincode: extractedPincode,
       });
     } catch (error) {
       toast.error("Failed to fetch profile");
@@ -64,12 +66,14 @@ const SellerProfile = () => {
   };
 
   const handleLocationSelect = (location) => {
+    const pincodeFromAddr = location.address?.match(/\b\d{6}\b/)?.[0] || "";
     setFormData((prev) => ({
       ...prev,
       lat: location.lat,
       lng: location.lng,
       radius: location.radius,
       address: location.address,
+      pincode: pincodeFromAddr || prev.pincode,
     }));
   };
 
@@ -110,6 +114,7 @@ const SellerProfile = () => {
         lat: formData.lat,
         lng: formData.lng,
         radius: formData.radius,
+        pincode: formData.pincode || formData.address?.match(/\b\d{6}\b/)?.[0] || "",
       };
       await sellerApi.updateProfile(payload);
       toast.success("Profile updated successfully");

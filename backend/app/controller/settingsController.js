@@ -289,12 +289,15 @@ export const checkPincodeServiceability = async (req, res) => {
       return handleResponse(res, 400, "PIN-code must be exactly 6 numeric digits");
     }
 
-    // Find if there is any active, verified, and approved seller with this pincode
+    // Find if there is any active, verified, and approved seller with this pincode or address containing pincode
     const seller = await Seller.findOne({
       isActive: true,
       isVerified: true,
       applicationStatus: "approved",
-      pincode: cleanPincode,
+      $or: [
+        { pincode: cleanPincode },
+        { address: { $regex: cleanPincode, $options: "i" } }
+      ]
     }).select("shopName");
 
     if (seller) {
