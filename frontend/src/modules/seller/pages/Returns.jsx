@@ -159,7 +159,8 @@ const Returns = () => {
     const handleApprove = async (orderId) => {
         try {
             await sellerApi.approveReturn(orderId, {});
-            showToast("Return approved", "success");
+            showToast("Return approved successfully", "success");
+            setIsDetailsOpen(false);
             await fetchReturns();
         } catch (error) {
             console.error("Failed to approve return", error);
@@ -576,7 +577,7 @@ const Returns = () => {
                                         <div className="space-y-1.5 flex flex-col h-full group">
                                             <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner group-hover:border-slate-300 transition-colors">
                                                 <img
-                                                    src={selectedReturn.items?.[0]?.image || "https://placehold.co/400x400/f8fafc/64748b?text=Original"}
+                                                    src={selectedReturn.items?.[0]?.image || selectedReturn.returnItems?.[0]?.image || selectedReturn.items?.[0]?.product?.image || selectedReturn.items?.[0]?.product?.images?.[0] || "https://placehold.co/400x400/f8fafc/64748b?text=Original"}
                                                     alt="Original"
                                                     className="h-full w-full object-cover"
                                                 />
@@ -587,23 +588,25 @@ const Returns = () => {
                                         </div>
 
 
-                                        {/* 3. Return Pickup Proof */}
+                                        {/* 2. Return Photo (Pickup Proof or Customer Uploaded Photo) */}
                                         <div className="space-y-1.5 flex flex-col h-full group">
                                             <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner group-hover:border-slate-300 transition-colors flex items-center justify-center">
-                                                {selectedReturn.returnPickupImages?.[0] ? (
+                                                {(selectedReturn.returnPickupImages?.[0] || selectedReturn.returnImages?.[0]) ? (
                                                     <img
-                                                        src={selectedReturn.returnPickupImages[0]}
-                                                        alt="Return Pickup"
+                                                        src={selectedReturn.returnPickupImages?.[0] || selectedReturn.returnImages?.[0]}
+                                                        alt="Return Photo"
                                                         className="h-full w-full object-cover"
                                                     />
                                                 ) : (
                                                     <div className="flex flex-col items-center gap-1.5 text-slate-400 px-3 text-center">
-                                                        <HiOutlineInboxStack className="h-5 w-5" />
-                                                        <p className="text-[8px] font-bold leading-tight uppercase">Not Picked Yet</p>
+                                                        <HiOutlineInboxStack className="h-5 w-5 text-slate-400" />
+                                                        <p className="text-[8px] font-bold leading-tight uppercase text-slate-400">Not Picked Yet</p>
                                                     </div>
                                                 )}
                                                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-900/60 to-transparent p-2">
-                                                    <p className="text-[9px] font-black text-white uppercase leading-none">Return</p>
+                                                    <p className="text-[9px] font-black text-white uppercase leading-none">
+                                                        {selectedReturn.returnPickupImages?.[0] ? "Pickup Proof" : "Return Photo"}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

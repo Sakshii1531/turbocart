@@ -59,7 +59,12 @@ function distanceMeters(from, to) {
 }
 
 function destinationForPhase(order, phase) {
-  const isReturn = order?.returnStatus && order.returnStatus !== "none";
+  const isReturn = Boolean(
+    order?.returnStatus &&
+      !["none", "return_requested", "return_rejected"].includes(
+        String(order.returnStatus).toLowerCase()
+      )
+  );
   if (phase === "pickup") {
     if (isReturn) {
       const loc = order?.address?.location;
@@ -259,7 +264,12 @@ const DeliveryTrackingMapComponent = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!rider, fetchRoute, phase, orderId]);
 
-  const isReturn = order?.returnStatus && order.returnStatus !== "none";
+  const isReturn = Boolean(
+    order?.returnStatus &&
+      !["none", "return_requested", "return_rejected"].includes(
+        String(order.returnStatus).toLowerCase()
+      )
+  );
   // Use order address location, fall back to the destination resolved by the route API
   const dest = useMemo(() => {
     const fromOrder = destinationForPhase(order, phase);

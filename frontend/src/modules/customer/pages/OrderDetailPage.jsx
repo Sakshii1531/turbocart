@@ -953,33 +953,75 @@ const OrderDetailPage = () => {
             Order Items
           </h3>
           <div className="space-y-3">
-            {order.items.map((item, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
-                <div className="h-14 w-14 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
-                  <img
-                    src={applyCloudinaryTransform(item.image)}
-                    alt={item.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
+            {order.items.map((item, idx) => {
+              const isDelivered = String(order.status || "").toLowerCase() === "delivered" || String(order.workflowStatus || "").toUpperCase() === "DELIVERED";
+              const itemReturnStatus = item.returnStatus || "none";
+              const returnPolicy = item.returnPolicy || { isReturnable: false, returnWindowDays: 0, returnReasons: [] };
+              const returnEligible = item.returnEligible;
+              const remainingDays = item.remainingReturnDays;
+
+              return (
+                <div
+                  key={idx}
+                  className="flex flex-col gap-2 p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-14 bg-slate-50 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100">
+                      <img
+                        src={applyCloudinaryTransform(item.image)}
+                        alt={item.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-slate-800 text-sm mb-0.5 truncate">
+                        {item.name}
+                      </h4>
+                      <p className="text-slate-500 text-xs font-medium">
+                        Qty: {item.quantity}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-slate-900">
+                        ₹{item.price * item.quantity}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isDelivered && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold">
+                      {itemReturnStatus !== "none" ? (
+                        <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider text-[10px]">
+                          Return {itemReturnStatus}
+                        </span>
+                      ) : returnEligible ? (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-emerald-600 font-bold text-[11px]">
+                            ✓ Return within {remainingDays} day{remainingDays > 1 ? "s" : ""}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setSelectedReturnItems({ [idx]: { quantity: item.quantity } });
+                              setShowReturnModal(true);
+                            }}
+                            className="px-3 py-1 bg-slate-900 text-white rounded-lg text-xs font-bold shadow hover:bg-slate-800 transition-all active:scale-95">
+                            Return Item
+                          </button>
+                        </div>
+                      ) : !returnPolicy.isReturnable ? (
+                        <span className="text-slate-400 font-semibold italic text-[11px]">
+                          ❌ Non Returnable
+                        </span>
+                      ) : (
+                        <span className="text-rose-500 font-semibold italic text-[11px]">
+                          Return Window Closed
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-slate-800 text-sm mb-0.5 truncate">
-                    {item.name}
-                  </h4>
-                  <p className="text-slate-500 text-xs font-medium">
-                    Qty: {item.quantity}
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-bold text-slate-900">
-                    ₹{item.price * item.quantity}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
 
@@ -1209,11 +1251,26 @@ const OrderDetailPage = () => {
                   className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
                 >
                   <option value="" disabled>Select a reason...</option>
-                  <option value="Defective product">Defective product</option>
-                  <option value="Wrong item delivered">Wrong item delivered</option>
-                  <option value="Not as expected">Not as expected</option>
-                  <option value="Size issue">Size issue</option>
-                  <option value="Other">Other</option>
+                  {(() => {
+                    const selectedIdx = Object.keys(selectedReturnItems)[0];
+                    const selectedItem = selectedIdx !== undefined ? order?.items?.[selectedIdx] : null;
+                    const configured = selectedItem?.returnPolicy?.returnReasons || [];
+                    const optionsList = configured.length > 0 ? configured : [
+                      "Damaged Product",
+                      "Wrong Product",
+                      "Quality Issue",
+                      "Expired Product",
+                      "Missing Item",
+                      "Received Different Variant",
+                      "Packaging Issue",
+                      "Other",
+                    ];
+                    return optionsList.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ));
+                  })()}
                 </select>
               </div>
 

@@ -3,6 +3,7 @@
  * Refactor P5.2. Opt-in adoption — see orderValidation.js header.
  */
 import Joi from "joi";
+import { returnPolicyJoiSchema } from "./returnPolicyValidation.js";
 
 const trimmedString = Joi.string().trim();
 const objectIdLike = trimmedString.min(8).max(64);
@@ -31,6 +32,7 @@ export const createProductSchema = Joi.object({
     .optional(),
   brand: trimmedString.max(100).optional(),
   tags: Joi.array().items(trimmedString.max(50)).max(20).optional(),
+  returnPolicy: returnPolicyJoiSchema.optional(),
 }).unknown(true); // images may arrive via multer in a different field
 
 export const updateProductSchema = createProductSchema.fork(

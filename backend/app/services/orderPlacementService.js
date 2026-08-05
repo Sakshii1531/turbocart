@@ -76,6 +76,14 @@ function mapOrderItemsForPersistence(hydratedItems = []) {
     price: item.price,
     variantSlot: String(item.variantSku || item.variantSlot || "").trim() || undefined,
     image: item.image || "",
+    returnPolicy: {
+      isReturnable: Boolean(item.returnPolicy?.isReturnable ?? false),
+      returnWindowDays: Number(item.returnPolicy?.returnWindowDays ?? 0),
+      returnReasons: Array.isArray(item.returnPolicy?.returnReasons)
+        ? item.returnPolicy.returnReasons
+        : [],
+    },
+    returnStatus: "none",
   }));
 }
 

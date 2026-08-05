@@ -302,10 +302,19 @@ const ProductDetailPage = () => {
                             <span className="text-sm font-bold text-slate-400 flex items-center justify-center sm:justify-start gap-1">
                                 <Clock size={14} /> Delivered in 10-15 mins
                             </span>
+                            {product.returnPolicy?.isReturnable ? (
+                                <span className="text-sm font-bold text-emerald-600 flex items-center justify-center sm:justify-start gap-1">
+                                    ✓ Easy Return - Return within {product.returnPolicy.returnWindowDays} days
+                                </span>
+                            ) : (
+                                <span className="text-sm font-bold text-rose-500 flex items-center justify-center sm:justify-start gap-1">
+                                    ❌ Non Returnable
+                                </span>
+                            )}
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-sm">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Weight</p>
                             <p className="text-sm font-black text-slate-800">{product.weight || '1 unit'}</p>
@@ -317,6 +326,18 @@ const ProductDetailPage = () => {
                         <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-sm">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Brand</p>
                             <p className="text-sm font-black text-slate-800">{product.brand || 'Premium'}</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-slate-100 text-center shadow-sm">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Return Policy</p>
+                            {product.returnPolicy?.isReturnable ? (
+                                <p className="text-xs font-black text-emerald-600">
+                                    ✓ {product.returnPolicy.returnWindowDays} Days Return
+                                </p>
+                            ) : (
+                                <p className="text-xs font-black text-rose-500">
+                                    ❌ Non Returnable
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

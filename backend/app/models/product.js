@@ -125,7 +125,23 @@ const productSchema = new mongoose.Schema(
         isFeatured: {
             type: Boolean,
             default: false,
-        }
+        },
+        returnPolicy: {
+            isReturnable: {
+                type: Boolean,
+                default: false,
+            },
+            returnWindowDays: {
+                type: Number,
+                default: 0,
+                min: 0,
+                max: 30,
+            },
+            returnReasons: [{
+                type: String,
+                trim: true,
+            }],
+        },
     },
     { timestamps: true }
 );
@@ -140,6 +156,7 @@ productSchema.index({ subcategoryId: 1, status: 1 });
 productSchema.index({ sellerId: 1, status: 1 });
 productSchema.index({ sellerId: 1, approvalStatus: 1, createdAt: -1 });
 productSchema.index({ sellerId: 1, createdAt: -1, _id: -1 });
+productSchema.index({ "returnPolicy.isReturnable": 1, sellerId: 1, status: 1 });
 productSchema.index({ name: "text", tags: "text" }); // For better search if regex is too slow
 
 export default mongoose.model("Product", productSchema);

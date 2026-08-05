@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { sellerApi } from "../services/sellerApi";
 
 
+import ReturnPolicySection from "@shared/components/ui/ReturnPolicySection";
+
 const AddProduct = () => {
   const navigate = useNavigate();
   const [modalTab, setModalTab] = useState("general");
@@ -56,6 +58,11 @@ const AddProduct = () => {
     brand: "",
     mainImage: null,
     galleryImages: [],
+    returnPolicy: {
+      isReturnable: false,
+      returnWindowDays: 0,
+      returnReasons: [],
+    },
     variants: [
       {
         id: Date.now(),
@@ -134,6 +141,13 @@ const AddProduct = () => {
       return;
     }
 
+    if (formData.returnPolicy?.isReturnable) {
+      if (!formData.returnPolicy.returnWindowDays || Number(formData.returnPolicy.returnWindowDays) <= 0 || Number(formData.returnPolicy.returnWindowDays) > 30) {
+        toast.error("Please enter a valid Return Window (1 to 30 days).");
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       const data = new FormData();
@@ -146,6 +160,9 @@ const AddProduct = () => {
       data.append("brand", formData.brand);
       data.append("weight", formData.weight);
       data.append("status", formData.status);
+
+      // Return policy
+      data.append("returnPolicy", JSON.stringify(formData.returnPolicy || { isReturnable: false, returnWindowDays: 0, returnReasons: [] }));
 
       // Map top-level price/stock from first variant for indexing/listing
       data.append("price", firstVariant.price);
@@ -251,6 +268,7 @@ const AddProduct = () => {
             { id: "variants", label: "Item Variants", icon: HiOutlineSwatch },
             { id: "category", label: "Groups", icon: HiOutlineFolderOpen },
             { id: "media", label: "Photos", icon: HiOutlinePhoto },
+            { id: "returnPolicy", label: "Return Policy", icon: HiOutlineArrowPath },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -696,7 +714,16 @@ const AddProduct = () => {
             </div>
           )}
 
-          
+          {modalTab === "returnPolicy" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+              <ReturnPolicySection
+                returnPolicy={formData.returnPolicy}
+                onChange={(newPolicy) =>
+                  setFormData((prev) => ({ ...prev, returnPolicy: newPolicy }))
+                }
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

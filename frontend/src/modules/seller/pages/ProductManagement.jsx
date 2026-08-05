@@ -29,6 +29,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { sellerApi } from "../services/sellerApi";
 import { toast } from "sonner";
 import Pagination from "@shared/components/ui/Pagination";
+import ReturnPolicySection from "@shared/components/ui/ReturnPolicySection";
 
 const ProductManagement = () => {
   const navigate = useNavigate();
@@ -204,6 +205,11 @@ const ProductManagement = () => {
     brand: "",
     mainImage: null,
     galleryImages: [],
+    returnPolicy: {
+      isReturnable: false,
+      returnWindowDays: 0,
+      returnReasons: [],
+    },
     variants: [
       { id: Date.now(), name: "", price: "", salePrice: "", stock: "", sku: "" },
     ],
@@ -321,6 +327,13 @@ const ProductManagement = () => {
         return;
       }
 
+      if (formData.returnPolicy?.isReturnable) {
+        if (!formData.returnPolicy.returnWindowDays || Number(formData.returnPolicy.returnWindowDays) <= 0 || Number(formData.returnPolicy.returnWindowDays) > 30) {
+          toast.error("Please enter a valid Return Window (1 to 30 days).");
+          return;
+        }
+      }
+
       const data = new FormData();
       data.append("name", formData.name);
       data.append("slug", formData.slug);
@@ -337,6 +350,7 @@ const ProductManagement = () => {
       data.append("weight", formData.weight);
       data.append("tags", formData.tags);
       data.append("variants", JSON.stringify(formData.variants));
+      data.append("returnPolicy", JSON.stringify(formData.returnPolicy || { isReturnable: false, returnWindowDays: 0, returnReasons: [] }));
 
       if (formData.mainImageFile) {
         data.append("mainImage", formData.mainImageFile);
@@ -432,6 +446,7 @@ const ProductManagement = () => {
         brand: item.brand || "",
         mainImage: item.mainImage || null,
         galleryImages: item.galleryImages || [],
+        returnPolicy: item.returnPolicy || { isReturnable: false, returnWindowDays: 0, returnReasons: [] },
         variants: (item.variants && item.variants.length > 0) ? item.variants.map(v => ({ ...v, id: v._id || Date.now() })) : [
           {
             id: Date.now(),
@@ -663,6 +678,9 @@ const ProductManagement = () => {
                   Variant
                 </th>
                 <th className="px-6 py-3 text-center text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+                  Return Policy
+                </th>
+                <th className="px-6 py-3 text-center text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
                   Approval
                 </th>
                 <th className="px-6 py-3 text-right text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
@@ -746,6 +764,17 @@ const ProductManagement = () => {
                     ) : (
                       <span className="text-xs font-medium text-slate-400 bg-slate-50 border border-slate-100 px-2 py-1 rounded italic">
                         None
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    {p.returnPolicy?.isReturnable ? (
+                      <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        Returnable ({p.returnPolicy.returnWindowDays} Days)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                        Non Returnable
                       </span>
                     )}
                   </td>
@@ -942,6 +971,11 @@ const ProductManagement = () => {
                       icon: HiOutlineFolderOpen,
                     },
                     { id: "media", label: "Photos", icon: HiOutlinePhoto },
+                    {
+                      id: "returnPolicy",
+                      label: "Return Policy",
+                      icon: HiOutlineArrowPath,
+                    },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -1310,6 +1344,17 @@ const ProductManagement = () => {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {modalTab === "returnPolicy" && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                      <ReturnPolicySection
+                        returnPolicy={formData.returnPolicy}
+                        onChange={(newPolicy) =>
+                          setFormData((prev) => ({ ...prev, returnPolicy: newPolicy }))
+                        }
+                      />
                     </div>
                   )}
                 </div>

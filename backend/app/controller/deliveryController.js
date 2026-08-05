@@ -1,4 +1,4 @@
-﻿import Order from "../models/order.js";
+import Order from "../models/order.js";
 import { orderMatchQueryFromRouteParam } from "../utils/orderLookup.js";
 import Transaction from "../models/transaction.js";
 import Delivery from "../models/delivery.js";
@@ -260,9 +260,8 @@ export const getMyDeliveryOrders = async (req, res) => {
                     },
                 ],
             };
-        } else if (normalized === "returns") {
             query = {
-                returnStatus: { $ne: "none" },
+                returnStatus: { $nin: ["none", "return_requested", "return_rejected"] },
                 $or: [
                     { deliveryBoy: deliveryBoyId },
                     { returnDeliveryBoy: deliveryBoyId },

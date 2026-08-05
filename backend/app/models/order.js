@@ -42,6 +42,36 @@ const orderSchema = new mongoose.Schema(
         },
         variantSlot: String,
         image: String,
+        returnPolicy: {
+          isReturnable: {
+            type: Boolean,
+            default: false,
+          },
+          returnWindowDays: {
+            type: Number,
+            default: 0,
+          },
+          returnReasons: [String],
+        },
+        returnStatus: {
+          type: String,
+          enum: ["none", "requested", "approved", "rejected", "completed"],
+          default: "none",
+        },
+        returnedAt: {
+          type: Date,
+          default: null,
+        },
+        returnReason: {
+          type: String,
+          trim: true,
+          default: null,
+        },
+        returnComments: {
+          type: String,
+          trim: true,
+          default: null,
+        },
       },
     ],
     address: {

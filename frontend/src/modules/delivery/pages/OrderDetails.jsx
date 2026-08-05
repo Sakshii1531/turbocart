@@ -177,7 +177,12 @@ const OrderDetails = () => {
   const [routeStats, setRouteStats] = useState(null);
   const [clockTick, setClockTick] = useState(Date.now());
 
-  const isReturn = order?.returnStatus && order.returnStatus !== "none";
+  const isReturn = Boolean(
+    order?.returnStatus &&
+      !["none", "return_requested", "return_rejected"].includes(
+        String(order.returnStatus).toLowerCase()
+      )
+  );
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -398,7 +403,7 @@ const OrderDetails = () => {
     try {
       // Return pickup flow: slide button only advances UI steps (1→2, 3→4)
       // OTP flows handle actual status transitions
-      if (order?.returnStatus && order.returnStatus !== "none") {
+      if (isReturn) {
         if (step === 1) {
           // Accepted → Arrived at Customer: just advance UI to show proof upload
           setStep(2);
@@ -568,9 +573,8 @@ const OrderDetails = () => {
 
   const isReturnWaitAccept = useMemo(() => {
     if (!order) return false;
-    const isReturn = order.returnStatus && order.returnStatus !== "none";
     return isReturn && !order.returnDeliveryBoy;
-  }, [order]);
+  }, [order, isReturn]);
 
   // Determine current phase for map
   // Return: steps 1-2 = navigate to customer (pickup), steps 3-4 = navigate to seller (delivery)

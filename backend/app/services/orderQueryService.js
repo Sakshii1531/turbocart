@@ -9,6 +9,7 @@ import {
 } from "../utils/orderLookup.js";
 import { buildKey, getOrSet, getTTL } from "./cacheService.js";
 import { resolveWorkflowStatus } from "./orderWorkflowService.js";
+import { decorateOrderWithReturnEligibility } from "../utils/returnEligibilityHelper.js";
 import logger from "./logger.js";
 
 function svcErr(message, statusCode) {
@@ -411,7 +412,7 @@ export async function getCustomerOrders(customerId, pagination) {
       const [orders, total] = await Promise.all([
         Order.find({ customer: customerId })
           .select(
-            "orderId checkoutGroupId customer seller items address payment pricing status workflowStatus workflowVersion returnStatus timeSlot createdAt",
+            "orderId checkoutGroupId customer seller items address payment pricing status orderStatus workflowStatus workflowVersion returnStatus deliveredAt timeSlot createdAt",
           )
           .sort({ createdAt: -1, _id: -1 })
           .skip(skip)
@@ -422,7 +423,7 @@ export async function getCustomerOrders(customerId, pagination) {
       ]);
 
       return {
-        items: orders,
+        items: orders.map((o) => decorateOrderWithReturnEligibility(o)),
         page,
         limit,
         total,
@@ -577,7 +578,7 @@ export async function getOrderWithAccess(orderId, userId, role) {
 
   return {
     isGroupSummary: false,
-    payload: order,
+    payload: decorateOrderWithReturnEligibility(order),
   };
 }
 

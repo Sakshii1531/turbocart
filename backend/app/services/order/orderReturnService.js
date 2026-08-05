@@ -42,6 +42,8 @@ import logger from "../logger.js";
 import { calculateRiderPayout } from "../finance/pricingService.js";
 import { distanceMeters } from "../../utils/geoUtils.js";
 
+import { isReturnEligible } from "../../utils/returnEligibilityHelper.js";
+
 function err(message, statusCode) {
   const error = new Error(message);
   error.statusCode = statusCode;
@@ -73,32 +75,51 @@ export class OrderReturnService {
       throw err("Order not found", 404);
     }
 
-    if (order.status !== "delivered") {
+    if (String(order.status || "").toLowerCase() !== "delivered") {
       throw err("Return can only be requested for delivered orders.", 400);
     }
 
-    if (order.returnStatus && order.returnStatus !== "none") {
-      throw err("Return request already exists for this order.", 400);
-    }
-
     const now = new Date();
-    // Timer validations removed as per request
+    const deliveredAt = order.deliveredAt || order.updatedAt || order.createdAt;
 
     const selectedItems = [];
     for (const entry of items) {
-      const { itemIndex, quantity } = entry || {};
-      if (
-        typeof itemIndex !== "number" ||
-        itemIndex < 0 ||
-        itemIndex >= order.items.length
-      ) {
+      const { itemIndex, itemId, quantity } = entry || {};
+      let targetIndex = -1;
+      if (typeof itemIndex === "number" && itemIndex >= 0 && itemIndex < order.items.length) {
+        targetIndex = itemIndex;
+      } else if (itemId) {
+        targetIndex = order.items.findIndex((it) => String(it._id || it.id || it.product) === String(itemId));
+      }
+
+      if (targetIndex === -1) {
         throw err("Invalid item selection for return.", 400);
       }
-      const original = order.items[itemIndex];
+
+      const original = order.items[targetIndex];
+
+      // Validate Return Eligibility based on Order Snapshot
+      const eligibility = isReturnEligible(original, deliveredAt, order.status, now);
+      if (!eligibility.returnEligible) {
+        throw err(`Item '${original.name}' is not eligible for return: ${eligibility.reason}`, 400);
+      }
+
+      // Validate allowed return reasons configured by seller (if present)
+      const allowedReasons = original.returnPolicy?.returnReasons || [];
+      if (allowedReasons.length > 0 && !allowedReasons.includes(reason.trim())) {
+        throw err(`Selected return reason is not valid for '${original.name}'`, 400);
+      }
+
       const qty = Number(quantity) || original.quantity;
       if (qty <= 0 || qty > original.quantity) {
         throw err("Invalid quantity for one of the return items.", 400);
       }
+
+      // Update item return state inside order.items snapshot
+      order.items[targetIndex].returnStatus = "requested";
+      order.items[targetIndex].returnedAt = now;
+      order.items[targetIndex].returnReason = reason.trim();
+      order.items[targetIndex].returnComments = reasonDetail?.trim() || "";
 
       selectedItems.push({
         product: original.product,
@@ -106,7 +127,7 @@ export class OrderReturnService {
         quantity: qty,
         price: original.price,
         variantSlot: original.variantSlot,
-        itemIndex,
+        itemIndex: targetIndex,
         status: "requested",
       });
     }
@@ -249,8 +270,9 @@ export class OrderReturnService {
       throw err("Order not found", 404);
     }
 
+    const sellerIdStr = (order.seller?._id || order.seller)?.toString();
     const isOwnerSeller =
-      role === "seller" && order.seller?.toString() === userId;
+      role === "seller" && sellerIdStr === String(userId);
     const isAdmin = role === "admin";
 
     if (!isOwnerSeller && !isAdmin) {
@@ -391,8 +413,9 @@ export class OrderReturnService {
       throw err("Order not found", 404);
     }
 
+    const sellerIdStr = (order.seller?._id || order.seller)?.toString();
     const isOwnerSeller =
-      role === "seller" && order.seller?.toString() === userId;
+      role === "seller" && sellerIdStr === String(userId);
     const isAdmin = role === "admin";
 
     if (!isOwnerSeller && !isAdmin) {

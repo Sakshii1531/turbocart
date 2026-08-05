@@ -33,6 +33,7 @@ jest.unstable_mockModule("../app/utils/helper.js", () => ({
 jest.unstable_mockModule("../app/constants/orderWorkflow.js", () => ({
   WORKFLOW_STATUS: { SELLER_PENDING: "SELLER_PENDING" },
   DEFAULT_SELLER_TIMEOUT_MS: () => 0,
+  workflowFromLegacyStatus: jest.fn(),
 }));
 
 jest.unstable_mockModule("../app/services/orderWorkflowService.js", () => ({
@@ -58,6 +59,7 @@ jest.unstable_mockModule("../app/services/finance/orderFinanceService.js", () =>
 jest.unstable_mockModule("../app/services/finance/pricingService.js", () => ({
   hydrateOrderItems: mockHydrateOrderItems,
   generateOrderPaymentBreakdown: mockGenerateOrderPaymentBreakdown,
+  calculateRiderPayout: jest.fn(),
 }));
 
 jest.unstable_mockModule("../app/models/order.js", () => ({

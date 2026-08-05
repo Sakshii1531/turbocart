@@ -25,27 +25,64 @@ const WalletPage = () => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [profileRes, ordersRes] = await Promise.all([
+                const [profileRes, txRes, ordersRes] = await Promise.all([
                     customerApi.getProfile(),
-                    customerApi.getMyOrders(),
+                    customerApi.getWalletTransactions().catch(() => ({ data: { result: { items: [] } } })),
+                    customerApi.getMyOrders().catch(() => ({ data: { results: [] } })),
                 ]);
                 const profile = profileRes.data?.result ?? profileRes.data?.data ?? profileRes.data;
-                const rawOrders = ordersRes.data?.results ?? ordersRes.data?.result ?? [];
-                const orders = Array.isArray(rawOrders) ? rawOrders : [];
                 setBalance(profile?.walletBalance ?? 0);
-                // Only orders purchased using wallet
-                const walletOrders = orders.filter(
-                    (o) => (o.payment?.method || '').toLowerCase() === 'wallet'
-                );
-                const items = walletOrders.map((o) => ({
-                    _id: o._id,
-                    type: 'debit',
-                    title: 'Order Payment',
-                    amount: o.pricing?.total ?? o.payableAmount ?? 0,
-                    date: o.createdAt,
-                    orderId: o.orderId,
-                }));
-                setTransactions(items);
+
+                const txData = txRes.data?.result?.items ?? txRes.data?.data?.items ?? txRes.data?.items ?? [];
+
+                if (Array.isArray(txData) && txData.length > 0) {
+                    const uniqueItems = [];
+                    const seen = new Set();
+                    txData.forEach((t) => {
+                        const key = t.orderId
+                            ? `${t.orderId}_${t.type}_${Math.round(Number(t.amount || 0))}`
+                            : (t.reference || String(t._id));
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            uniqueItems.push(t);
+                        }
+                    });
+                    setTransactions(uniqueItems);
+                } else {
+                    const rawOrders = ordersRes.data?.results ?? ordersRes.data?.result ?? [];
+                    const orders = Array.isArray(rawOrders) ? rawOrders : [];
+                    const fallbackItems = [];
+
+                    orders.forEach((o) => {
+                        if ((o.payment?.method || '').toLowerCase() === 'wallet' || Number(o.walletAmount || 0) > 0) {
+                            fallbackItems.push({
+                                _id: `debit-${o._id}`,
+                                type: 'debit',
+                                title: 'Order Payment',
+                                amount: o.walletAmount || o.pricing?.total || o.payableAmount || 0,
+                                date: o.createdAt,
+                                orderId: o.orderId,
+                            });
+                        }
+                        if (Array.isArray(o.items)) {
+                            o.items.forEach((it, idx) => {
+                                if (it.returnStatus === 'refund_completed' || it.returnStatus === 'approved') {
+                                    fallbackItems.push({
+                                        _id: `credit-${o._id}-${idx}`,
+                                        type: 'credit',
+                                        title: `Return Refund (${it.name || 'Item'})`,
+                                        amount: (it.price || 0) * (it.quantity || 1),
+                                        date: it.returnedAt || o.updatedAt || o.createdAt,
+                                        orderId: o.orderId,
+                                    });
+                                }
+                            });
+                        }
+                    });
+
+                    fallbackItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setTransactions(fallbackItems);
+                }
             } catch (err) {
                 console.error('Wallet fetch error:', err);
                 setBalance(0);

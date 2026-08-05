@@ -744,7 +744,8 @@ export const assignReturnDelivery = async (req, res) => {
       return handleResponse(res, 404, "Order not found");
     }
 
-    const isOwnerSeller = role === "seller" && order.seller?.toString() === userId;
+    const sellerIdStr = (order.seller?._id || order.seller)?.toString();
+    const isOwnerSeller = role === "seller" && sellerIdStr === String(userId);
     const isAdmin = role === "admin";
 
     if (!isOwnerSeller && !isAdmin) {

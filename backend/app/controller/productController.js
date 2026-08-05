@@ -34,6 +34,7 @@ import {
   resolveProductApprovalStatus,
 } from "../services/productModerationService.js";
 import { buildSearchRegex } from "../utils/regex.js";
+import { parseAndValidateReturnPolicy } from "../validation/returnPolicyValidation.js";
 
 // Phase 3 P3-5: when search term is reasonably specific and the env flag
 // is enabled, prefer Mongo's `name + tags` text index over case-insensitive
@@ -325,6 +326,15 @@ export const getProducts = async (req, res) => {
     }
 
     if (featured !== undefined) query.isFeatured = featured === "true";
+    if (req.query.isReturnable !== undefined) {
+      query["returnPolicy.isReturnable"] = String(req.query.isReturnable) === "true";
+    } else if (req.query.returnPolicy !== undefined) {
+      if (req.query.returnPolicy === "returnable") {
+        query["returnPolicy.isReturnable"] = true;
+      } else if (req.query.returnPolicy === "non-returnable") {
+        query["returnPolicy.isReturnable"] = false;
+      }
+    }
 
     let finalQuery = { ...query };
     if (enforceRadius) {
@@ -461,6 +471,16 @@ export const getSellerProducts = async (req, res) => {
       }
     }
 
+    if (req.query.isReturnable !== undefined) {
+      query["returnPolicy.isReturnable"] = String(req.query.isReturnable) === "true";
+    } else if (req.query.returnPolicy !== undefined) {
+      if (req.query.returnPolicy === "returnable") {
+        query["returnPolicy.isReturnable"] = true;
+      } else if (req.query.returnPolicy === "non-returnable") {
+        query["returnPolicy.isReturnable"] = false;
+      }
+    }
+
     const sortMap = {
       newest: { createdAt: -1 },
       oldest: { createdAt: 1 },
@@ -486,7 +506,7 @@ export const getSellerProducts = async (req, res) => {
     ] = await Promise.all([
       Product.find(query)
         .select(
-          "name slug description sku price salePrice stock lowStockAlert brand weight mainImage galleryImages headerId categoryId subcategoryId sellerId status approvalStatus approvalRequestedAt approvalReviewedAt approvalReviewedBy approvalNote lastSubmittedByRole isFeatured variants createdAt",
+          "name slug description sku price salePrice stock lowStockAlert brand weight mainImage galleryImages headerId categoryId subcategoryId sellerId status approvalStatus approvalRequestedAt approvalReviewedAt approvalReviewedBy approvalNote lastSubmittedByRole isFeatured variants returnPolicy createdAt",
         )
         .populate("headerId", "name")
         .populate("categoryId", "name")
@@ -701,6 +721,13 @@ export const createProduct = async (req, res) => {
       }));
     }
 
+    const { value: parsedReturnPolicy, error: returnPolicyError } =
+      parseAndValidateReturnPolicy(productData.returnPolicy);
+    if (returnPolicyError) {
+      return handleResponse(res, 400, returnPolicyError);
+    }
+    productData.returnPolicy = parsedReturnPolicy;
+
     let moderationUpdate = {};
     let successMessage = "Product created successfully";
 
@@ -881,6 +908,15 @@ export const updateProduct = async (req, res) => {
             ? variant.sku
             : makeProductSku(skuBaseName, idx + 1),
       }));
+    }
+
+    if (productData.returnPolicy !== undefined) {
+      const { value: parsedReturnPolicy, error: returnPolicyError } =
+        parseAndValidateReturnPolicy(productData.returnPolicy);
+      if (returnPolicyError) {
+        return handleResponse(res, 400, returnPolicyError);
+      }
+      productData.returnPolicy = parsedReturnPolicy;
     }
 
     let moderationUpdate = {};
